@@ -1,16 +1,16 @@
-const CACHE_NAME = 'offline-cache-v1';
-
+const CACHE_NAME = 'pwa-cache-v1';
 const FILES_TO_CACHE = [
-  'index.html',
-  'jquery.min.js',
-  'scripts.js',
-  'manifest.json',
-  'Icon.png',
-  'greats.html',
-  'Moral.html',
-  'Open.html',
-  'theLimit.html'
-  
+  '/',
+  '/PWA/index.html',
+  '/PWA/jquery.min.js',
+  '/PWA/scripts.js',
+  '/PWA/style.css',
+  '/PWA/greats.html',
+  '/PWA/Moral.html',
+  '/PWA/Open.html',
+  '/PWA/theLimit.html',
+  '/PWA/Icon.png',
+  '/PWA/manifest.json'
 ];
 
 // Install event: cache everything listed above
