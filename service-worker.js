@@ -41,14 +41,21 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/PWA/index.html');
-        }
-      });
-    })
+self.addEventListener('fetch', (evt) => {
+  if (evt.request.method !== 'GET') return;
+
+  evt.respondWith(
+    fetch(evt.request)
+      .then((networkResponse) => {
+        // Optionally cache the new response
+        return caches.open(CACHE_NAME).then(cache => {
+          cache.put(evt.request, networkResponse.clone());
+          return networkResponse;
+        });
+      })
+      .catch(() => {
+        // If network fails, use cache
+        return caches.match(evt.request);
+      })
   );
 });
