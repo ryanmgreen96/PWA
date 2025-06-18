@@ -164,6 +164,18 @@ $(".item").click(function () {
     if (savedWidth) {
         $(".content").css("max-width", savedWidth);
     }
+        const savedTheme = localStorage.getItem("theme");
+
+            if (savedTheme === "white") {
+                $("body").addClass("white-theme");
+            } else {
+                $("body").removeClass("white-theme").addClass("gradient-theme");
+
+                if (savedBackground) {
+                    updateBackground(savedBackground);
+                }
+            }
+        
 
     // Add the new button handlers
     $('.control-toggle').click(function() {
@@ -184,10 +196,24 @@ $(".item").click(function () {
 });
 
     // Color buttons
-    $('#colors-row button').click(function() {
-        const gradient = $(this).data('gradient');
-        updateBackground(gradient);
-    });
+   
+
+            $('#colors-row button').not('#whiteThemeBtn').click(function () {
+                const gradient = $(this).data('gradient');
+
+                $("body").removeClass("white-theme").addClass("gradient-theme");
+
+                updateBackground(gradient);
+                localStorage.setItem("background", gradient); // ← missing in your version
+                localStorage.setItem("theme", "gradient");
+            });
+    
+    
+
+
+
+
+
 
     // Font buttons
     $('#fonts-row button').click(function() {
@@ -235,6 +261,29 @@ $(".item").click(function () {
             $(this).html("↕");
         }
     });
+
+    // In your main JS file (e.g. index2.html or linked script)
+if ('serviceWorker' in navigator) {
+  if (window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost') {
+    navigator.serviceWorker.register('/service-worker.js');
+  } else {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+}
+
+ $("#toggle-classification-bar").click(function () {
+    $("#classification-bar").toggle();
+  });
+
+            $("#whiteThemeBtn").click(function () {
+                $("body").removeClass("gradient-theme").addClass("white-theme");
+                localStorage.setItem("theme", "white");
+            });
+  
            
 
 
