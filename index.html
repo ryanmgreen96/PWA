@@ -32,23 +32,24 @@
   font-weight: normal;
   font-style: normal;
 }
-        .white-theme {
-    background: white !important;
+     html.white-theme, 
+body.white-theme {
+    background-color: white !important;
     color: black !important;
 }
 
 .white-theme .content,
+.white-theme .modal-box,
 .white-theme .header,
 .white-theme .sub-header,
-.white-theme .item,
-.white-theme .modal-box {
+.white-theme .item {
     color: black !important;
 }
 
-/* Optional - hide the gradient when white-theme is active */
 body.white-theme::before {
     display: none !important;
 }
+
 
 
     #hume{font-size: 1.7em; color: hsl(30, 95%, 80%);}
