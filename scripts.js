@@ -198,18 +198,22 @@ $(".item").click(function () {
     // Color buttons
    
 
-            $('#colors-row button').not('#whiteThemeBtn').click(function () {
-                const gradient = $(this).data('gradient');
+         $('#colors-row button').not('#whiteThemeBtn').click(function () {
+    const gradient = $(this).data('gradient');
+    $("html, body").removeClass("white-theme").addClass("gradient-theme");
+    updateBackground(gradient);
+    localStorage.setItem("background", gradient);
+    localStorage.setItem("theme", "gradient");
+});
 
-                $("body").removeClass("white-theme").addClass("gradient-theme");
-
-                updateBackground(gradient);
-                localStorage.setItem("background", gradient); // ← missing in your version
-                localStorage.setItem("theme", "gradient");
-            });
     
     
+ $('#whiteThemeBtn').click(function () {
+    $("html, body").removeClass("gradient-theme").addClass("white-theme");
+    localStorage.setItem("theme", "white");
+});
 
+  
 
 
 
@@ -279,11 +283,7 @@ if ('serviceWorker' in navigator) {
     $("#classification-bar").toggle();
   });
 
-            $("#whiteThemeBtn").click(function () {
-                $("body").removeClass("gradient-theme").addClass("white-theme");
-                localStorage.setItem("theme", "white");
-            });
-  
+        
            
 
 
