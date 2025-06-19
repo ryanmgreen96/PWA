@@ -10,7 +10,8 @@ const FILES_TO_CACHE = [
   '/PWA/greats.html',
   '/PWA/Moral.html',
   '/PWA/Open.html',
-  '/PWA/theLimit.html'
+  '/PWA/theLimit.html',
+  '/PWA/Centaur.woff2'
 ];
 
 self.addEventListener('install', (event) => {
