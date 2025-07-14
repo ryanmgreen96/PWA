@@ -112,26 +112,141 @@
        $(".item").addClass("hidden");
    }
 });
-    
 
-$(".item").click(function () {
-    // Remove active class from all items
-    $(".item").removeClass("active");
-    // Add active class to clicked item
-    $(this).addClass("active");
+
+
+
+
+
+
+
     
+$(".item").click(function () {
+    $(".item").removeClass("active");
+    $(this).addClass("active");
+
     const file = $(this).data("file");
     const divId = $(this).data("id");
-    $(".content").load(file + " #" + divId, function() {
-        $(".content-item").click(function() {
-            const contentId = $(this).data("content");
-            $(".content-text").addClass("hidden");
-            $("#" + contentId).removeClass("hidden");
-            $(".content-item").css("opacity", "0.8");
-            $(this).css("opacity", "1");
+
+    $(".content").load(file + " #" + divId, function () {
+
+    // Wrap text nodes with spans but preserve whitespace exactly
+$(".content").find("*").contents().each(function () {
+    if (this.nodeType === 3 && this.textContent.length > 0) {
+        let cleaned = this.textContent.replace(/\n/g, "");
+
+        // Remove leading whitespace only for the first top-level line
+        if ($(this).parent().is(".content") || $(this).is($(this).parent().contents().get(0))) {
+            cleaned = cleaned.replace(/^\s+/, "");
+        }
+
+        const parts = cleaned.split(/(\s+)/);
+        const wrapped = parts.map(part => {
+            if (/^\s+$/.test(part)) return part;
+            return `<span class="noteWord">${part}</span>`;
+        }).join("");
+        $(this).replaceWith(wrapped);
+    }
+});
+
+
+
+    // Remove any empty noteWord spans
+    $(".content").find(".noteWord").filter(function () {
+        return $(this).text().trim() === "";
+    }).remove();
+
+        // ✅ Highlight words that already have notes
+        $(".noteWord").each(function () {
+            const word = $(this).text();
+            const key = `${divId}::${word}`;
+            if (localStorage.getItem(key)) {
+                $(this).addClass("has-note");
+            }
         });
+
+        // ✅ Add click handler to show note
+        $(".noteWord").on("click", function () {
+            const activeWord = $(this).text();
+            const key = `${divId}::${activeWord}`;
+            const existingNote = localStorage.getItem(key) || "";
+
+            $("#noteInput").val(existingNote);
+            $("#noteOverlay").removeClass("hidden").data("note-key", key);
+            $("#overlayBackdrop").addClass("visible");
+        });
+         $(".content").append('<button id="scrollTopBtn"></button>');
+         $(".content").append('<div style="height: 30em;"></div>');
     });
 });
+
+
+
+
+$("#overlayBackdrop").click(function () {
+    const key = $("#noteOverlay").data("note-key");
+    const value = $("#noteInput").val().trim();
+
+    if (value) {
+        localStorage.setItem(key, value);
+    } else {
+        localStorage.removeItem(key);
+    }
+
+    // 🔽 Update highlight
+    const [sectionId, word] = key.split("::");
+    $(".noteWord").each(function () {
+        if ($(this).text() === word) {
+            if (value) {
+                $(this).addClass("has-note");
+            } else {
+                $(this).removeClass("has-note");
+            }
+        }
+    });
+
+    $("#noteOverlay").addClass("hidden");
+    $("#overlayBackdrop").removeClass("visible");
+});
+
+
+
+// ✅ Auto-grow textarea height
+$("#noteInput").on("input", function () {
+    this.style.height = "auto";
+    this.style.height = this.scrollHeight + "px";
+});
+
+$("#closeNoteBtn").click(function () {
+    const key = $("#noteOverlay").data("note-key");
+    const value = $("#noteInput").val().trim();
+
+    if (value) {
+        localStorage.setItem(key, value);
+
+        // Highlight the word after saving
+        const [sectionId, word] = key.split("::");
+        $(".content").find(".noteWord").each(function () {
+            if ($(this).text() === word) {
+                $(this).addClass("has-note");
+            }
+        });
+    } else {
+        localStorage.removeItem(key);
+    }
+
+    $("#noteOverlay").addClass("hidden");
+    $("#overlayBackdrop").removeClass("visible");
+});
+
+
+$("#noteBox").click(function(event) {
+    event.stopPropagation(); // Stop click from bubbling to #overlayBackdrop
+});
+
+
+
+
 
             // Function to update background with CSS rule
             function updateBackground(backgroundValue) {
@@ -284,7 +399,10 @@ if ('serviceWorker' in navigator) {
   });
 
         
-           
+           $(document).on("click", "#scrollTopBtn", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
 
 
         });
