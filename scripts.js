@@ -1,4 +1,382 @@
-$(document).ready(function () {
+
+// 2222222222222222222222222222222
+
+
+
+/********************************************
+ * script.js — FULL FILE with Firestore sync
+ * (Numbered code edits in comments)
+ ********************************************/
+
+/* =========================================
+   [1] Firebase SDK imports + init (top-level)
+   ========================================= */
+// Firebase v9+ CDN imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  enableIndexedDbPersistence,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD90ou_VU3c2QWu8O9tEKO41ccWwrTdlw0",
+  authDomain: "collection-b09db.firebaseapp.com",
+  projectId: "collection-b09db",
+  storageBucket: "collection-b09db.firebasestorage.app",
+  messagingSenderId: "952428700049",
+  appId: "1:952428700049:web:95e2a1504cf42700d9fa30",
+};
+
+// Initialize Firebase app
+const fbApp = initializeApp(firebaseConfig);
+
+// Initialize Firestore and enable offline persistence
+const db = getFirestore(fbApp);
+enableIndexedDbPersistence(db).catch((err) => {
+  // Ignore persistence errors (multi-tab, etc.)
+  console.warn("IndexedDB persistence could not be enabled:", err.message);
+});
+
+
+/* ===========================================================
+   [2] Sync constants, device ID, and meta helpers (top-level)
+   =========================================================== */
+const FIRESTORE_COLLECTION = "appState";
+const FIRESTORE_DOC_ID = "shared";
+const FS_DOC_REF = () => doc(db, FIRESTORE_COLLECTION, FIRESTORE_DOC_ID);
+
+function getDeviceId() {
+  let id = localStorage.getItem("deviceId");
+  if (!id) {
+    id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("deviceId", id);
+  }
+  return id;
+}
+const DEVICE_ID = getDeviceId();
+
+function getLocalMeta() {
+  try {
+    return JSON.parse(localStorage.getItem("appMeta")) || {};
+  } catch {
+    return {};
+  }
+}
+function setLocalMeta(meta) {
+  localStorage.setItem("appMeta", JSON.stringify(meta || {}));
+}
+
+/* ===================================================================
+   [3] Merge strategy (most-recently-closed snapshot wins on conflicts)
+   =================================================================== */
+function deepMergeAppData(preferred, fallback) {
+  // Start with a shallow copy of the preferred snapshot
+  const result = { ...preferred };
+
+  // Merge simple top-level keys if missing in preferred
+  const topKeys = [
+    "notes",
+    "background",
+    "font",
+    "fontSize",
+    "contentWidth",
+    "theme",
+    "layout",
+  ];
+  topKeys.forEach((k) => {
+    if (result[k] == null && fallback[k] != null) result[k] = fallback[k];
+  });
+
+  // Merge notes object: key-by-key choose preferred when both present
+  const prefNotes = preferred.notes || {};
+  const fallNotes = fallback.notes || {};
+  const mergedNotes = { ...fallNotes, ...prefNotes };
+  result.notes = mergedNotes;
+
+  return result;
+}
+
+/* ===========================================================
+   [4] Firestore save/load helpers + debounced save (top-level)
+   =========================================================== */
+let saveTimer = null;
+function saveToFirestoreDebounced(payload, delay = 500) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await setDoc(
+        FS_DOC_REF(),
+        {
+          data: payload.appData,
+          lastSavedAt: Date.now(),
+          // lastClosedAt is only set during "close" events
+          lastDeviceId: DEVICE_ID,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {
+      // Offline or other issue; Firestore will retry when possible.
+    }
+  }, delay);
+}
+
+async function saveCloseSnapshotToFirestore(appData, lastClosedAtMillis) {
+  try {
+    await setDoc(
+      FS_DOC_REF(),
+      {
+        data: appData,
+        lastClosedAt: lastClosedAtMillis,
+        lastDeviceId: DEVICE_ID,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch {
+    // Offline; will sync later if persistence is available.
+  }
+}
+
+async function fetchFirestoreSnapshot() {
+  try {
+    const snap = await getDoc(FS_DOC_REF());
+    if (snap.exists()) {
+      const d = snap.data();
+      return {
+        appData: d.data,
+        lastClosedAt: d.lastClosedAt || 0,
+        lastSavedAt: d.lastSavedAt || 0,
+        lastDeviceId: d.lastDeviceId || null,
+      };
+    }
+  } catch {
+    // ignore; likely offline
+  }
+  return null;
+}
+
+/* =========================================
+   [5] Live listener (optional) for remote wins
+   ========================================= */
+function startFirestoreListener(getAppData, setAppDataAndApply) {
+  // If another device closes more recently, adopt its snapshot.
+  onSnapshot(FS_DOC_REF(), (snap) => {
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+    const remote = {
+      appData: d.data || null,
+      lastClosedAt: d.lastClosedAt || 0,
+      lastSavedAt: d.lastSavedAt || 0,
+    };
+    if (!remote.appData) return;
+
+    const meta = getLocalMeta();
+    const localLastClosed = meta.lastClosedAt || 0;
+
+    if (remote.lastClosedAt && remote.lastClosedAt > localLastClosed) {
+      // Remote was closed more recently -> adopt
+      const merged = deepMergeAppData(remote.appData, getAppData());
+      setAppDataAndApply(merged, {
+        lastClosedAt: remote.lastClosedAt,
+        lastSavedAt: Date.now(),
+      });
+    }
+  });
+}
+
+/* =========================
+   [6] Main app (original)
+   ========================= */
+
+
+
+
+
+
+
+
+
+
+
+
+
+   $(document).ready(function () {
+  // ================================
+  // APP DATA (single object) + helpers
+  // ================================
+  const defaultAppData = () => ({
+    // notes store both item-level notes and per-word notes:
+    //   - `${divId}::note` => string
+    //   - `${divId}::${word}` => string
+    notes: {},
+    // UI prefs
+    background: null,
+    font: null,
+    fontSize: null,
+    contentWidth: null,
+    theme: "gradient", // "gradient" | "white"
+    layout: "horizontal", // "horizontal" | "vertical"
+  });
+
+  let appData;
+
+  /* ---------------------------------------------------------
+     [7] loadAppData/saveAppData EXTENDED for Firestore writes
+     --------------------------------------------------------- */
+  function loadAppData() {
+    try {
+      appData = JSON.parse(localStorage.getItem("appData")) || defaultAppData();
+    } catch (e) {
+      appData = defaultAppData();
+    }
+    return appData;
+  }
+  function saveAppData() {
+    localStorage.setItem("appData", JSON.stringify(appData));
+
+    // [7a] Firestore write (debounced)
+    saveToFirestoreDebounced({ appData });
+  }
+
+  // Optional one-time migration of any legacy keys (background/font/etc + :: note keys)
+  function migrateLegacyStorageIntoAppData() {
+    const existing = localStorage.getItem("appData");
+    if (existing) return; // already migrated/created
+
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k !== "appData") keys.push(k);
+    }
+
+    appData = defaultAppData();
+
+    keys.forEach((k) => {
+      const v = localStorage.getItem(k);
+      if (k.includes("::")) {
+        // note keys
+        if (v) appData.notes[k] = v;
+      } else if (k === "background") {
+        appData.background = v;
+      } else if (k === "font") {
+        appData.font = v;
+      } else if (k === "fontSize") {
+        appData.fontSize = v;
+      } else if (k === "contentWidth") {
+        appData.contentWidth = v;
+      } else if (k === "theme") {
+        appData.theme = v || appData.theme;
+      } else if (k === "layout") {
+        appData.layout = v || appData.layout;
+      }
+    });
+
+    saveAppData();
+  }
+
+  loadAppData();
+  migrateLegacyStorageIntoAppData(); // harmless if nothing to migrate
+  loadAppData(); // reload after potential migration
+
+  /* =======================================================
+     [8] Apply UI extracted so we can re-run after FS merges
+     ======================================================= */
+  function applyUIFromAppData() {
+    if (appData.background) updateBackground(appData.background);
+    if (appData.font) $("body").css("font-family", appData.font);
+    if (appData.fontSize) $(".content").css("font-size", appData.fontSize);
+    if (appData.contentWidth)
+      $(".content").css("max-width", appData.contentWidth);
+
+    if (appData.theme === "white") {
+      $("body").addClass("white-theme").removeClass("gradient-theme");
+    } else {
+      $("body").removeClass("white-theme").addClass("gradient-theme");
+      if (appData.background) updateBackground(appData.background);
+    }
+
+    const layoutToggle = $("#layout-toggle");
+    const container = $(".container");
+    if (appData.layout === "vertical") {
+      container.addClass("vertical-layout");
+      layoutToggle.html("↔");
+    } else {
+      container.removeClass("vertical-layout");
+      layoutToggle.html("↕");
+    }
+  }
+
+  /* =================================================================
+     [9] On-load Firestore sync (most-recently-closed snapshot wins)
+     ================================================================= */
+  (async function initialFirestoreSync() {
+    const localMeta = getLocalMeta(); // { lastClosedAt?, lastSavedAt? }
+    const fsSnap = await fetchFirestoreSnapshot();
+
+    if (fsSnap && fsSnap.appData) {
+      // Choose winner by lastClosedAt
+      const fsClosed = fsSnap.lastClosedAt || 0;
+      const localClosed = localMeta.lastClosedAt || 0;
+
+      if (fsClosed >= localClosed) {
+        // Firestore is newer or equal -> adopt Firestore then merge missing keys from local
+        const merged = deepMergeAppData(fsSnap.appData, appData);
+        appData = merged;
+        saveAppData(); // triggers debounced FS save (merge: ok)
+        applyUIFromAppData();
+        setLocalMeta({
+          ...localMeta,
+          lastSavedAt: Date.now(),
+          lastClosedAt: fsClosed, // align with remote
+        });
+      } else {
+        // Local was closed more recently -> push local up as the shared version
+        saveToFirestoreDebounced({ appData }, 0);
+      }
+    } else {
+      // No remote doc -> push local up
+      saveToFirestoreDebounced({ appData }, 0);
+    }
+
+    // Start live listener to accept newer "closed" snapshots
+    startFirestoreListener(
+      () => appData,
+      (next, newMeta) => {
+        appData = next;
+        saveAppData();
+        applyUIFromAppData();
+        setLocalMeta({ ...(getLocalMeta() || {}), ...(newMeta || {}) });
+      }
+    );
+  })();
+
+  /* ====================================================
+     [10] Close/visibility handlers to stamp lastClosedAt
+     ==================================================== */
+  function stampAndSyncOnClose() {
+    const now = Date.now();
+    const meta = getLocalMeta();
+    const nextMeta = { ...meta, lastClosedAt: now, lastSavedAt: now };
+    setLocalMeta(nextMeta);
+    saveCloseSnapshotToFirestore(appData, now);
+  }
+  window.addEventListener("beforeunload", stampAndSyncOnClose);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      stampAndSyncOnClose();
+    }
+  });
+
+  // ================================
+  // Header click logic (unchanged behavior)
+  // ================================
   $(".header").click(function () {
     const group = $(this).data("group");
 
@@ -113,9 +491,11 @@ $(document).ready(function () {
     }
   });
 
+  // ================================
+  // Sub-header click (unchanged behavior)
+  // ================================
   $(".sub-header").click(function () {
     const group = $(this).data("group");
-    const currentSubHeader = $(this);
     const isExpanded =
       $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
 
@@ -131,9 +511,15 @@ $(document).ready(function () {
       $(`[data-group='${group}'].sub-header`).removeClass("hidden");
       // Hide all items
       $(".item").addClass("hidden");
+
+      // Clear loaded text & note box
+      $(".content").empty();
     }
   });
 
+  // ================================
+  // Content item click (LOAD + NOTES using appData)
+  // ================================
   $(".item").click(function () {
     $(".item").removeClass("active");
     $(this).addClass("active");
@@ -142,38 +528,67 @@ $(document).ready(function () {
     const divId = $(this).data("id");
 
     $(".content").load(file + " #" + divId, function () {
-      // Wrap text nodes with spans but preserve whitespace exactly
+      // 1) Remove any existing note box and prepend new one
+      $("#itemNoteBox").remove();
+      const noteKey = `${divId}::note`;
+      const savedNote = appData.notes[noteKey] || "";
+      const noteBox = $(
+        `<textarea id="itemNoteBox"
+          placeholder="Type your note..."
+          style="
+            display: block;
+            width: calc(100% - 40px);
+            margin-bottom: 1em;
+            font-size: 0.9em;
+            color: #ffffe0;
+            background: transparent;
+            border: 1px solid rgba(255,255,224,0.3);
+            padding: 4px;
+            resize: vertical;
+          ">${savedNote}</textarea>`
+      );
+      $(".content").prepend(noteBox);
+
+      // Auto-grow and save note to appData
+      noteBox.on("input", function () {
+        this.style.height = "auto";
+        this.style.height = this.scrollHeight + "px";
+        const val = $(this).val().trim();
+        if (val) {
+          appData.notes[noteKey] = val;
+        } else {
+          delete appData.notes[noteKey];
+        }
+        saveAppData();
+      });
+
+      // 2) Wrap text nodes in spans (skip the note box)
       $(".content")
         .find("*")
+        .not("#itemNoteBox")
         .contents()
         .each(function () {
           if (this.nodeType === 3 && this.textContent.length > 0) {
             let cleaned = this.textContent.replace(/\n/g, "");
-
-            // Remove leading whitespace only for the first top-level line
             if (
               $(this).parent().is(".content") ||
               $(this).is($(this).parent().contents().get(0))
             ) {
               cleaned = cleaned.replace(/^\s+/, "");
             }
-
             const parts = cleaned.split(/(\s+)/);
             const wrapped = parts
               .map((part) => {
                 if (/^\s+$/.test(part)) return part;
-                if ($(this).closest(".content-nav").length) {
-                  return part; // don't wrap nav items in noteWord spans
-                }
+                if ($(this).closest(".content-nav").length) return part;
                 return `<span class="noteWord">${part}</span>`;
-
               })
               .join("");
             $(this).replaceWith(wrapped);
           }
         });
 
-      // Remove any empty noteWord spans
+      // 3) Remove empty noteWord spans
       $(".content")
         .find(".noteWord")
         .filter(function () {
@@ -181,62 +596,60 @@ $(document).ready(function () {
         })
         .remove();
 
-      // ✅ Highlight words that already have notes
+      // 4) Highlight words with saved notes (from appData)
       $(".noteWord").each(function () {
         const word = $(this).text();
         const key = `${divId}::${word}`;
-        if (localStorage.getItem(key)) {
-          $(this).addClass("has-note");
-        }
+        if (appData.notes[key]) $(this).addClass("has-note");
       });
 
-      // ✅ Add click handler to show note
+      // 5) Add click handler for note overlay (reads/writes appData)
       $(".noteWord").on("click", function () {
-        if ($(this).closest(".content-item").length) {
-          return;
-        }
+        if ($(this).closest(".content-item").length) return;
         const activeWord = $(this).text();
         const key = `${divId}::${activeWord}`;
-        const existingNote = localStorage.getItem(key) || "";
-
+        const existingNote = appData.notes[key] || "";
         $("#noteInput").val(existingNote);
         $("#noteOverlay").removeClass("hidden").data("note-key", key);
         $("#overlayBackdrop").addClass("visible");
       });
+
+      // 6) Optional: scrollTop button & spacing
       $(".content").append('<button id="scrollTopBtn"></button>');
       $(".content").append('<div style="height: 30em;"></div>');
     });
   });
+
+  // ================================
+  // Content-item switcher (unchanged)
+  // ================================
   $(document).on("click", ".content-item", function () {
     const targetId = $(this).data("content");
     const container = $(this).closest(".content-container");
-
-    // Hide all text sections in this container
     container.find(".content-text").addClass("hidden");
-
-    // Show the one that matches this item
     container.find("#" + targetId).removeClass("hidden");
   });
 
+  // ================================
+  // Overlay save/close -> appData.notes
+  // ================================
   $("#overlayBackdrop").click(function () {
     const key = $("#noteOverlay").data("note-key");
     const value = $("#noteInput").val().trim();
 
     if (value) {
-      localStorage.setItem(key, value);
+      appData.notes[key] = value;
     } else {
-      localStorage.removeItem(key);
+      delete appData.notes[key];
     }
+    saveAppData();
 
-    // 🔽 Update highlight
+    // Update highlight
     const [sectionId, word] = key.split("::");
     $(".noteWord").each(function () {
       if ($(this).text() === word) {
-        if (value) {
-          $(this).addClass("has-note");
-        } else {
-          $(this).removeClass("has-note");
-        }
+        if (value) $(this).addClass("has-note");
+        else $(this).removeClass("has-note");
       }
     });
 
@@ -244,7 +657,7 @@ $(document).ready(function () {
     $("#overlayBackdrop").removeClass("visible");
   });
 
-  // ✅ Auto-grow textarea height
+  // Auto-grow textarea height
   $("#noteInput").on("input", function () {
     this.style.height = "auto";
     this.style.height = this.scrollHeight + "px";
@@ -255,7 +668,7 @@ $(document).ready(function () {
     const value = $("#noteInput").val().trim();
 
     if (value) {
-      localStorage.setItem(key, value);
+      appData.notes[key] = value;
 
       // Highlight the word after saving
       const [sectionId, word] = key.split("::");
@@ -267,9 +680,10 @@ $(document).ready(function () {
           }
         });
     } else {
-      localStorage.removeItem(key);
+      delete appData.notes[key];
     }
 
+    saveAppData();
     $("#noteOverlay").addClass("hidden");
     $("#overlayBackdrop").removeClass("visible");
   });
@@ -278,112 +692,89 @@ $(document).ready(function () {
     event.stopPropagation(); // Stop click from bubbling to #overlayBackdrop
   });
 
-  // Function to update background with CSS rule
+  // ================================
+  // Background/theme/font/size/width using appData
+  // ================================
   function updateBackground(backgroundValue) {
     const styleSheet = document.styleSheets[0];
-    const rules = styleSheet.cssRules || styleSheet.rules;
+    const rules = styleSheet && (styleSheet.cssRules || styleSheet.rules);
+    if (!rules) return;
+
     for (let i = 0; i < rules.length; i++) {
       if (rules[i].selectorText === "body::before") {
         rules[i].style.background = backgroundValue;
-        localStorage.setItem("background", backgroundValue);
+        appData.background = backgroundValue;
+        saveAppData();
         break;
       }
     }
   }
 
-  // Keep all your localStorage loading
-  const savedBackground = localStorage.getItem("background");
-  const savedFont = localStorage.getItem("font");
-  const savedFontSize = localStorage.getItem("fontSize");
-  const savedWidth = localStorage.getItem("contentWidth");
+  // Apply saved UI
+  applyUIFromAppData();
 
-  if (savedBackground) {
-    updateBackground(savedBackground);
-  }
-  if (savedFont) {
-    $("body").css("font-family", savedFont);
-  }
-  if (savedFontSize) {
-    $(".content").css("font-size", savedFontSize);
-  }
-  if (savedWidth) {
-    $(".content").css("max-width", savedWidth);
-  }
-  const savedTheme = localStorage.getItem("theme");
-
-  if (savedTheme === "white") {
-    $("body").addClass("white-theme");
-  } else {
-    $("body").removeClass("white-theme").addClass("gradient-theme");
-
-    if (savedBackground) {
-      updateBackground(savedBackground);
-    }
-  }
-
-  // Add the new button handlers
+  // Toggle rows (unchanged)
   $(".control-toggle").click(function () {
     const type = $(this).data("type");
     const targetRow = $(`#${type}-row`);
 
-    // If this row is already visible, hide it
     if (targetRow.css("display") === "flex") {
       targetRow.hide();
       return;
     }
-
-    // Hide all other rows
     $(".option-row").hide();
-
-    // Show this row with flex display
     targetRow.css("display", "flex");
   });
 
-  // Color buttons
-
+  // Color buttons -> gradient theme
   $("#colors-row button")
     .not("#whiteThemeBtn")
     .click(function () {
       const gradient = $(this).data("gradient");
       $("html, body").removeClass("white-theme").addClass("gradient-theme");
       updateBackground(gradient);
-      localStorage.setItem("background", gradient);
-      localStorage.setItem("theme", "gradient");
+      appData.theme = "gradient";
+      saveAppData();
     });
 
+  // White theme
   $("#whiteThemeBtn").click(function () {
     $("html, body").removeClass("gradient-theme").addClass("white-theme");
-    localStorage.setItem("theme", "white");
+    appData.theme = "white";
+    saveAppData();
   });
 
   // Font buttons
   $("#fonts-row button").click(function () {
     const fontFamily = $(this).data("font");
     $("body").css("font-family", fontFamily);
-    localStorage.setItem("font", fontFamily);
+    appData.font = fontFamily;
+    saveAppData();
   });
 
   // Size buttons
   $("#sizes-row button").click(function () {
     const fontSize = $(this).data("size");
     $(".content").css("font-size", fontSize);
-    localStorage.setItem("fontSize", fontSize);
+    appData.fontSize = fontSize;
+    saveAppData();
   });
 
   // Width buttons
   $("#width-row button").click(function () {
     const width = $(this).data("width");
     $(".content").css("max-width", width);
-    localStorage.setItem("contentWidth", width);
+    appData.contentWidth = width;
+    saveAppData();
   });
 
-  // Keep your layout toggle variables and code
+  // ================================
+  // Layout toggle using appData.layout
+  // ================================
   const layoutToggle = $("#layout-toggle");
   const container = $(".container");
 
-  // Keep your layout toggle saved preference code
-  const savedLayout = localStorage.getItem("layout");
-  if (savedLayout === "vertical") {
+  if (appData.layout === "vertical") {
     container.addClass("vertical-layout");
     layoutToggle.html("↔");
   }
@@ -395,15 +786,19 @@ $(document).ready(function () {
     $(".header").removeClass("hidden");
 
     if (container.hasClass("vertical-layout")) {
-      localStorage.setItem("layout", "vertical");
+      appData.layout = "vertical";
       $(this).html("↔");
     } else {
-      localStorage.setItem("layout", "horizontal");
+      appData.layout = "horizontal";
       $(this).html("↕");
     }
+    saveAppData();
+    applyUIFromAppData();
   });
 
-  // In your main JS file (e.g. index2.html or linked script)
+  // ================================
+  // Service worker (kept as in your script)
+  // ================================
   if ("serviceWorker" in navigator) {
     if (
       window.location.hostname !== "127.0.0.1" &&
@@ -419,6 +814,7 @@ $(document).ready(function () {
     }
   }
 
+  // Misc handlers (kept)
   $("#toggle-classification-bar").click(function () {
     $("#classification-bar").toggle();
   });
