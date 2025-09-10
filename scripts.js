@@ -506,6 +506,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
       $(this).removeClass("hidden");
       // Show items until next subheader
       $(this).nextUntil(".sub-header", ".item").removeClass("hidden");
+      $(".content").empty(); // [ADDED LINE]
     } else {
       // Show only sibling subheaders with same group
       $(`[data-group='${group}'].sub-header`).removeClass("hidden");
