@@ -378,122 +378,119 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // ================================
      // Header click logic (unchanged behavior)
      // ================================
-     $(".header").click(function () {
-       const group = $(this).data("group");
+    $(".header").click(function () {
+      const group = $(this).data("group");
 
-       // Special handling for Mason and Liberty
-       if (group === "group-mason" || group === "group-liberty") {
-         const isLibertyClick = group === "group-liberty";
-         const childHeadersVisible = isLibertyClick
-           ? $("[data-liberty='true']").not(".hidden").length > 0
-           : $("[data-mason='true']").not(".hidden").length > 0;
+      // Special handling for Mason and Liberty
+      if (group === "group-mason" || group === "group-liberty") {
+        const isLibertyClick = group === "group-liberty";
+        const childHeadersVisible = isLibertyClick
+          ? $("[data-liberty='true']").not(".hidden").length > 0
+          : $("[data-mason='true']").not(".hidden").length > 0;
 
-         if (childHeadersVisible) {
-           // Hide child headers and show all regular top-level headers
-           if (isLibertyClick) {
-             $("[data-liberty='true']").addClass("hidden");
-           } else {
-             $("[data-mason='true']").addClass("hidden");
-           }
-           $(".header")
-             .not("[data-mason='true']")
-             .not("[data-liberty='true']")
-             .removeClass("hidden");
-         } else {
-           // Show only child headers
-           $(".header")
-             .not(this)
-             .not(
-               isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
-             )
-             .addClass("hidden");
-           if (isLibertyClick) {
-             $("[data-liberty='true']").removeClass("hidden");
-           } else {
-             $("[data-mason='true']").removeClass("hidden");
-           }
-         }
-         // Always hide all subheaders and items
-         $(".sub-header, .item").addClass("hidden");
-         return;
-       }
+        if (childHeadersVisible) {
+          if (isLibertyClick) {
+            $("[data-liberty='true']").addClass("hidden");
+          } else {
+            $("[data-mason='true']").addClass("hidden");
+          }
+          $(".header")
+            .not("[data-mason='true']")
+            .not("[data-liberty='true']")
+            .removeClass("hidden");
+        } else {
+          $(".header")
+            .not(this)
+            .not(
+              isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
+            )
+            .addClass("hidden");
+          if (isLibertyClick) {
+            $("[data-liberty='true']").removeClass("hidden");
+          } else {
+            $("[data-mason='true']").removeClass("hidden");
+          }
+        }
 
-       // Special handling for Mason's and Liberty's sub-headers
-       if (
-         $(this).attr("data-mason") === "true" ||
-         $(this).attr("data-liberty") === "true"
-       ) {
-         $(".content").empty(); // <-- ADD THIS LINE
-         const isFromMason = $(this).attr("data-mason") === "true";
-         const isExpanded =
-           $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
-             .length > 0;
+        // Always hide all subheaders, items, and subheader notes
+        $(".sub-header, .item").addClass("hidden");
+        $("#subheaderNoteBox, .subheaderToggleBtn").remove();
+        return;
+      }
 
-         $(".sub-header, .item").addClass("hidden");
-         if (isExpanded) {
-           // Show all child headers again
-           if (isFromMason) {
-             $("[data-mason='true']").removeClass("hidden");
-             // Keep Mason visible
-             $("[data-group='group-mason']").removeClass("hidden");
-           } else {
-             $("[data-liberty='true']").removeClass("hidden");
-             // Keep Liberty visible
-             $("[data-group='group-liberty']").removeClass("hidden");
-           }
-         } else {
-           // Hide other child headers but keep this one
-           if (isFromMason) {
-             $("[data-mason='true']").addClass("hidden");
-             $(this).removeClass("hidden");
-             $(this)
-               .siblings(`.sub-header[data-group='${group}']`)
-               .removeClass("hidden");
-             // Keep Mason visible
-             $("[data-group='group-mason']").removeClass("hidden");
-           } else {
-             $("[data-liberty='true']").addClass("hidden");
-             $(this).removeClass("hidden");
-             $(this)
-               .siblings(`.sub-header[data-group='${group}']`)
-               .removeClass("hidden");
-             // Keep Liberty visible
-             $("[data-group='group-liberty']").removeClass("hidden");
-           }
-         }
-         return;
-       }
+      // Special handling for Mason's and Liberty's sub-headers
+      if (
+        $(this).attr("data-mason") === "true" ||
+        $(this).attr("data-liberty") === "true"
+      ) {
+        const isFromMason = $(this).attr("data-mason") === "true";
+        const isExpanded =
+          $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
+            .length > 0;
 
-       // Modified behavior for other headers
-       const isExpanded =
-         $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
-           .length > 0;
+        $(".sub-header, .item").addClass("hidden");
+        $("#subheaderNoteBox, .subheaderToggleBtn").remove();
 
-       $(".sub-header, .item").addClass("hidden");
-       if (isExpanded) {
-         // Show regular headers and handle special sections
-         if ($("[data-mason='true']").not(".hidden").length > 0) {
-           // If Mason section is active, keep Mason headers visible
-           $("[data-mason='true']").removeClass("hidden");
-           $("[data-group='group-mason']").removeClass("hidden");
-         } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
-           // If Liberty section is active, keep Liberty headers visible
-           $("[data-liberty='true']").removeClass("hidden");
-           $("[data-group='group-liberty']").removeClass("hidden");
-         } else {
-           // Otherwise show only regular headers
-           $(".header")
-             .not("[data-mason='true']")
-             .not("[data-liberty='true']")
-             .removeClass("hidden");
-         }
-       } else {
-         $(".header").not(this).addClass("hidden");
-         $(this)
-           .siblings(`.sub-header[data-group='${group}']`)
-           .removeClass("hidden");
-       }
-     });
+        if (isExpanded) {
+          if (isFromMason) {
+            $("[data-mason='true']").removeClass("hidden");
+            $("[data-group='group-mason']").removeClass("hidden");
+          } else {
+            $("[data-liberty='true']").removeClass("hidden");
+            $("[data-group='group-liberty']").removeClass("hidden");
+          }
+        } else {
+          if (isFromMason) {
+            $("[data-mason='true']").addClass("hidden");
+            $(this).removeClass("hidden");
+            $(this)
+              .siblings(`.sub-header[data-group='${group}']`)
+              .removeClass("hidden");
+            $("[data-group='group-mason']").removeClass("hidden");
+          } else {
+            $("[data-liberty='true']").addClass("hidden");
+            $(this).removeClass("hidden");
+            $(this)
+              .siblings(`.sub-header[data-group='${group}']`)
+              .removeClass("hidden");
+            $("[data-group='group-liberty']").removeClass("hidden");
+          }
+        }
+        return;
+      }
+
+      // Default behavior for other headers
+      const isExpanded =
+        $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
+          .length > 0;
+
+      $(".sub-header, .item").addClass("hidden");
+      $("#subheaderNoteBox, .subheaderToggleBtn").remove();
+
+      if (isExpanded) {
+        if ($("[data-mason='true']").not(".hidden").length > 0) {
+          $("[data-mason='true']").removeClass("hidden");
+          $("[data-group='group-mason']").removeClass("hidden");
+        } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
+          $("[data-liberty='true']").removeClass("hidden");
+          $("[data-group='group-liberty']").removeClass("hidden");
+        } else {
+          $(".header")
+            .not("[data-mason='true']")
+            .not("[data-liberty='true']")
+            .removeClass("hidden");
+        }
+      } else {
+        $(".header").not(this).addClass("hidden");
+        $(this)
+          .siblings(`.sub-header[data-group='${group}']`)
+          .removeClass("hidden");
+      }
+
+      // Clear content area
+      $(".content").empty();
+    });
+
 
      // ================================
      // SUBHEADER CLICK FUNCTION
