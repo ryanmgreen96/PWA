@@ -471,19 +471,22 @@
       margin-top: 4px;
   }
 
-  .vertical-layout .left-column {
-      position: relative;
-      transform: none;
-      width: 700px;
-      margin-top: 80px;
-      display: flex;
-      flex-wrap: wrap;
-      flex-direction: row;
-      justify-content: center;
-      gap: 10px;
-      padding: 0 20px;
-  }
+.vertical-layout .left-column {
+    position: relative;
+    transform: none;
+    width: 650px;
+    margin-top: 80px;
+    display: flex;
+    flex-wrap: wrap;
+    /* keep the tiled look for headers */
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 20px;
+}
 
+
+ 
   .hidden {
       display: none !important;
   }
@@ -709,6 +712,7 @@
       outline: none;
   }
 
+  
 
 
 
@@ -727,5 +731,14 @@
       }
   }
 
+
+  @media (max-width: 600px){
+.vertical-layout .left-column{
+    width:450px
+}
+.content{
+    width:95%
+}
+  }
 
 

@@ -208,619 +208,761 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
 
    $(document).ready(function () {
-  // ================================
-  // APP DATA (single object) + helpers
-  // ================================
-  const defaultAppData = () => ({
-    // notes store both item-level notes and per-word notes:
-    //   - `${divId}::note` => string
-    //   - `${divId}::${word}` => string
-    notes: {},
-    // UI prefs
-    background: null,
-    font: null,
-    fontSize: null,
-    contentWidth: null,
-    theme: "gradient", // "gradient" | "white"
-    layout: "horizontal", // "horizontal" | "vertical"
-  });
+     // ================================
+     // APP DATA (single object) + helpers
+     // ================================
+     const defaultAppData = () => ({
+       // notes store both item-level notes and per-word notes:
+       //   - `${divId}::note` => string
+       //   - `${divId}::${word}` => string
+       notes: {},
+       // UI prefs
+       background: null,
+       font: null,
+       fontSize: null,
+       contentWidth: null,
+       theme: "gradient", // "gradient" | "white"
+       layout: "horizontal", // "horizontal" | "vertical"
+     });
 
-  let appData;
+     let appData;
 
-  /* ---------------------------------------------------------
+     /* ---------------------------------------------------------
      [7] loadAppData/saveAppData EXTENDED for Firestore writes
      --------------------------------------------------------- */
-  function loadAppData() {
-    try {
-      appData = JSON.parse(localStorage.getItem("appData")) || defaultAppData();
-    } catch (e) {
-      appData = defaultAppData();
-    }
-    return appData;
-  }
-  function saveAppData() {
-    localStorage.setItem("appData", JSON.stringify(appData));
+     function loadAppData() {
+       try {
+         appData =
+           JSON.parse(localStorage.getItem("appData")) || defaultAppData();
+       } catch (e) {
+         appData = defaultAppData();
+       }
+       return appData;
+     }
+     function saveAppData() {
+       localStorage.setItem("appData", JSON.stringify(appData));
 
-    // [7a] Firestore write (debounced)
-    saveToFirestoreDebounced({ appData });
-  }
+       // [7a] Firestore write (debounced)
+       saveToFirestoreDebounced({ appData });
+     }
 
-  // Optional one-time migration of any legacy keys (background/font/etc + :: note keys)
-  function migrateLegacyStorageIntoAppData() {
-    const existing = localStorage.getItem("appData");
-    if (existing) return; // already migrated/created
+     // Optional one-time migration of any legacy keys (background/font/etc + :: note keys)
+     function migrateLegacyStorageIntoAppData() {
+       const existing = localStorage.getItem("appData");
+       if (existing) return; // already migrated/created
 
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k !== "appData") keys.push(k);
-    }
+       const keys = [];
+       for (let i = 0; i < localStorage.length; i++) {
+         const k = localStorage.key(i);
+         if (k !== "appData") keys.push(k);
+       }
 
-    appData = defaultAppData();
+       appData = defaultAppData();
 
-    keys.forEach((k) => {
-      const v = localStorage.getItem(k);
-      if (k.includes("::")) {
-        // note keys
-        if (v) appData.notes[k] = v;
-      } else if (k === "background") {
-        appData.background = v;
-      } else if (k === "font") {
-        appData.font = v;
-      } else if (k === "fontSize") {
-        appData.fontSize = v;
-      } else if (k === "contentWidth") {
-        appData.contentWidth = v;
-      } else if (k === "theme") {
-        appData.theme = v || appData.theme;
-      } else if (k === "layout") {
-        appData.layout = v || appData.layout;
-      }
-    });
+       keys.forEach((k) => {
+         const v = localStorage.getItem(k);
+         if (k.includes("::")) {
+           // note keys
+           if (v) appData.notes[k] = v;
+         } else if (k === "background") {
+           appData.background = v;
+         } else if (k === "font") {
+           appData.font = v;
+         } else if (k === "fontSize") {
+           appData.fontSize = v;
+         } else if (k === "contentWidth") {
+           appData.contentWidth = v;
+         } else if (k === "theme") {
+           appData.theme = v || appData.theme;
+         } else if (k === "layout") {
+           appData.layout = v || appData.layout;
+         }
+       });
 
-    saveAppData();
-  }
+       saveAppData();
+     }
 
-  loadAppData();
-  migrateLegacyStorageIntoAppData(); // harmless if nothing to migrate
-  loadAppData(); // reload after potential migration
+     loadAppData();
+     migrateLegacyStorageIntoAppData(); // harmless if nothing to migrate
+     loadAppData(); // reload after potential migration
 
-  /* =======================================================
+     /* =======================================================
      [8] Apply UI extracted so we can re-run after FS merges
      ======================================================= */
-  function applyUIFromAppData() {
-    if (appData.background) updateBackground(appData.background);
-    if (appData.font) $("body").css("font-family", appData.font);
-    if (appData.fontSize) $(".content").css("font-size", appData.fontSize);
-    if (appData.contentWidth)
-      $(".content").css("max-width", appData.contentWidth);
+     function applyUIFromAppData() {
+       if (appData.background) updateBackground(appData.background);
+       if (appData.font) $("body").css("font-family", appData.font);
+       if (appData.fontSize) $(".content").css("font-size", appData.fontSize);
+       if (appData.contentWidth)
+         $(".content").css("max-width", appData.contentWidth);
 
-    if (appData.theme === "white") {
-      $("body").addClass("white-theme").removeClass("gradient-theme");
-    } else {
-      $("body").removeClass("white-theme").addClass("gradient-theme");
-      if (appData.background) updateBackground(appData.background);
-    }
+       if (appData.theme === "white") {
+         $("body").addClass("white-theme").removeClass("gradient-theme");
+       } else {
+         $("body").removeClass("white-theme").addClass("gradient-theme");
+         if (appData.background) updateBackground(appData.background);
+       }
 
-    const layoutToggle = $("#layout-toggle");
-    const container = $(".container");
-    if (appData.layout === "vertical") {
-      container.addClass("vertical-layout");
-      layoutToggle.html("↔");
-    } else {
-      container.removeClass("vertical-layout");
-      layoutToggle.html("↕");
-    }
-  }
+       const layoutToggle = $("#layout-toggle");
+       const container = $(".container");
+       if (appData.layout === "vertical") {
+         container.addClass("vertical-layout");
+         layoutToggle.html("↔");
+       } else {
+         container.removeClass("vertical-layout");
+         layoutToggle.html("↕");
+       }
+     }
 
-  /* =================================================================
+     /* =================================================================
      [9] On-load Firestore sync (most-recently-closed snapshot wins)
      ================================================================= */
-  (async function initialFirestoreSync() {
-    const localMeta = getLocalMeta(); // { lastClosedAt?, lastSavedAt? }
-    const fsSnap = await fetchFirestoreSnapshot();
+     (async function initialFirestoreSync() {
+       const localMeta = getLocalMeta(); // { lastClosedAt?, lastSavedAt? }
+       const fsSnap = await fetchFirestoreSnapshot();
 
-    if (fsSnap && fsSnap.appData) {
-      // Choose winner by lastClosedAt
-      const fsClosed = fsSnap.lastClosedAt || 0;
-      const localClosed = localMeta.lastClosedAt || 0;
+       if (fsSnap && fsSnap.appData) {
+         // Choose winner by lastClosedAt
+         const fsClosed = fsSnap.lastClosedAt || 0;
+         const localClosed = localMeta.lastClosedAt || 0;
 
-      if (fsClosed >= localClosed) {
-        // Firestore is newer or equal -> adopt Firestore then merge missing keys from local
-        const merged = deepMergeAppData(fsSnap.appData, appData);
-        appData = merged;
-        saveAppData(); // triggers debounced FS save (merge: ok)
-        applyUIFromAppData();
-        setLocalMeta({
-          ...localMeta,
-          lastSavedAt: Date.now(),
-          lastClosedAt: fsClosed, // align with remote
-        });
-      } else {
-        // Local was closed more recently -> push local up as the shared version
-        saveToFirestoreDebounced({ appData }, 0);
-      }
-    } else {
-      // No remote doc -> push local up
-      saveToFirestoreDebounced({ appData }, 0);
-    }
+         if (fsClosed >= localClosed) {
+           // Firestore is newer or equal -> adopt Firestore then merge missing keys from local
+           const merged = deepMergeAppData(fsSnap.appData, appData);
+           appData = merged;
+           saveAppData(); // triggers debounced FS save (merge: ok)
+           applyUIFromAppData();
+           setLocalMeta({
+             ...localMeta,
+             lastSavedAt: Date.now(),
+             lastClosedAt: fsClosed, // align with remote
+           });
+         } else {
+           // Local was closed more recently -> push local up as the shared version
+           saveToFirestoreDebounced({ appData }, 0);
+         }
+       } else {
+         // No remote doc -> push local up
+         saveToFirestoreDebounced({ appData }, 0);
+       }
 
-    // Start live listener to accept newer "closed" snapshots
-    startFirestoreListener(
-      () => appData,
-      (next, newMeta) => {
-        appData = next;
-        saveAppData();
-        applyUIFromAppData();
-        setLocalMeta({ ...(getLocalMeta() || {}), ...(newMeta || {}) });
-      }
-    );
-  })();
+       // Start live listener to accept newer "closed" snapshots
+       startFirestoreListener(
+         () => appData,
+         (next, newMeta) => {
+           appData = next;
+           saveAppData();
+           applyUIFromAppData();
+           setLocalMeta({ ...(getLocalMeta() || {}), ...(newMeta || {}) });
+         }
+       );
+     })();
 
-  /* ====================================================
+     /* ====================================================
      [10] Close/visibility handlers to stamp lastClosedAt
      ==================================================== */
-  function stampAndSyncOnClose() {
-    const now = Date.now();
-    const meta = getLocalMeta();
-    const nextMeta = { ...meta, lastClosedAt: now, lastSavedAt: now };
-    setLocalMeta(nextMeta);
-    saveCloseSnapshotToFirestore(appData, now);
-  }
-  window.addEventListener("beforeunload", stampAndSyncOnClose);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") {
-      stampAndSyncOnClose();
-    }
-  });
+     function stampAndSyncOnClose() {
+       const now = Date.now();
+       const meta = getLocalMeta();
+       const nextMeta = { ...meta, lastClosedAt: now, lastSavedAt: now };
+       setLocalMeta(nextMeta);
+       saveCloseSnapshotToFirestore(appData, now);
+     }
+     window.addEventListener("beforeunload", stampAndSyncOnClose);
+     document.addEventListener("visibilitychange", () => {
+       if (document.visibilityState === "hidden") {
+         stampAndSyncOnClose();
+       }
+     });
 
-  // ================================
-  // Header click logic (unchanged behavior)
-  // ================================
-  $(".header").click(function () {
-    const group = $(this).data("group");
+     // ================================
+     // Header click logic (unchanged behavior)
+     // ================================
+     $(".header").click(function () {
+       const group = $(this).data("group");
 
-    // Special handling for Mason and Liberty
-    if (group === "group-mason" || group === "group-liberty") {
-      const isLibertyClick = group === "group-liberty";
-      const childHeadersVisible = isLibertyClick
-        ? $("[data-liberty='true']").not(".hidden").length > 0
-        : $("[data-mason='true']").not(".hidden").length > 0;
+       // Special handling for Mason and Liberty
+       if (group === "group-mason" || group === "group-liberty") {
+         const isLibertyClick = group === "group-liberty";
+         const childHeadersVisible = isLibertyClick
+           ? $("[data-liberty='true']").not(".hidden").length > 0
+           : $("[data-mason='true']").not(".hidden").length > 0;
 
-      if (childHeadersVisible) {
-        // Hide child headers and show all regular top-level headers
-        if (isLibertyClick) {
-          $("[data-liberty='true']").addClass("hidden");
-        } else {
-          $("[data-mason='true']").addClass("hidden");
-        }
-        $(".header")
-          .not("[data-mason='true']")
-          .not("[data-liberty='true']")
-          .removeClass("hidden");
-      } else {
-        // Show only child headers
-        $(".header")
-          .not(this)
-          .not(isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']")
-          .addClass("hidden");
-        if (isLibertyClick) {
-          $("[data-liberty='true']").removeClass("hidden");
-        } else {
-          $("[data-mason='true']").removeClass("hidden");
-        }
-      }
-      // Always hide all subheaders and items
-      $(".sub-header, .item").addClass("hidden");
-      return;
-    }
+         if (childHeadersVisible) {
+           // Hide child headers and show all regular top-level headers
+           if (isLibertyClick) {
+             $("[data-liberty='true']").addClass("hidden");
+           } else {
+             $("[data-mason='true']").addClass("hidden");
+           }
+           $(".header")
+             .not("[data-mason='true']")
+             .not("[data-liberty='true']")
+             .removeClass("hidden");
+         } else {
+           // Show only child headers
+           $(".header")
+             .not(this)
+             .not(
+               isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
+             )
+             .addClass("hidden");
+           if (isLibertyClick) {
+             $("[data-liberty='true']").removeClass("hidden");
+           } else {
+             $("[data-mason='true']").removeClass("hidden");
+           }
+         }
+         // Always hide all subheaders and items
+         $(".sub-header, .item").addClass("hidden");
+         return;
+       }
 
-    // Special handling for Mason's and Liberty's sub-headers
-    if (
-      $(this).attr("data-mason") === "true" ||
-      $(this).attr("data-liberty") === "true"
-    ) {
-      const isFromMason = $(this).attr("data-mason") === "true";
-      const isExpanded =
-        $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
-          .length > 0;
+       // Special handling for Mason's and Liberty's sub-headers
+       if (
+         $(this).attr("data-mason") === "true" ||
+         $(this).attr("data-liberty") === "true"
+       ) {
+         $(".content").empty(); // <-- ADD THIS LINE
+         const isFromMason = $(this).attr("data-mason") === "true";
+         const isExpanded =
+           $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
+             .length > 0;
 
-      $(".sub-header, .item").addClass("hidden");
-      if (isExpanded) {
-        // Show all child headers again
-        if (isFromMason) {
-          $("[data-mason='true']").removeClass("hidden");
-          // Keep Mason visible
-          $("[data-group='group-mason']").removeClass("hidden");
-        } else {
-          $("[data-liberty='true']").removeClass("hidden");
-          // Keep Liberty visible
-          $("[data-group='group-liberty']").removeClass("hidden");
-        }
-      } else {
-        // Hide other child headers but keep this one
-        if (isFromMason) {
-          $("[data-mason='true']").addClass("hidden");
-          $(this).removeClass("hidden");
-          $(this)
-            .siblings(`.sub-header[data-group='${group}']`)
-            .removeClass("hidden");
-          // Keep Mason visible
-          $("[data-group='group-mason']").removeClass("hidden");
-        } else {
-          $("[data-liberty='true']").addClass("hidden");
-          $(this).removeClass("hidden");
-          $(this)
-            .siblings(`.sub-header[data-group='${group}']`)
-            .removeClass("hidden");
-          // Keep Liberty visible
-          $("[data-group='group-liberty']").removeClass("hidden");
-        }
-      }
-      return;
-    }
+         $(".sub-header, .item").addClass("hidden");
+         if (isExpanded) {
+           // Show all child headers again
+           if (isFromMason) {
+             $("[data-mason='true']").removeClass("hidden");
+             // Keep Mason visible
+             $("[data-group='group-mason']").removeClass("hidden");
+           } else {
+             $("[data-liberty='true']").removeClass("hidden");
+             // Keep Liberty visible
+             $("[data-group='group-liberty']").removeClass("hidden");
+           }
+         } else {
+           // Hide other child headers but keep this one
+           if (isFromMason) {
+             $("[data-mason='true']").addClass("hidden");
+             $(this).removeClass("hidden");
+             $(this)
+               .siblings(`.sub-header[data-group='${group}']`)
+               .removeClass("hidden");
+             // Keep Mason visible
+             $("[data-group='group-mason']").removeClass("hidden");
+           } else {
+             $("[data-liberty='true']").addClass("hidden");
+             $(this).removeClass("hidden");
+             $(this)
+               .siblings(`.sub-header[data-group='${group}']`)
+               .removeClass("hidden");
+             // Keep Liberty visible
+             $("[data-group='group-liberty']").removeClass("hidden");
+           }
+         }
+         return;
+       }
 
-    // Modified behavior for other headers
-    const isExpanded =
-      $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
-        .length > 0;
+       // Modified behavior for other headers
+       const isExpanded =
+         $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
+           .length > 0;
 
-    $(".sub-header, .item").addClass("hidden");
-    if (isExpanded) {
-      // Show regular headers and handle special sections
-      if ($("[data-mason='true']").not(".hidden").length > 0) {
-        // If Mason section is active, keep Mason headers visible
-        $("[data-mason='true']").removeClass("hidden");
-        $("[data-group='group-mason']").removeClass("hidden");
-      } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
-        // If Liberty section is active, keep Liberty headers visible
-        $("[data-liberty='true']").removeClass("hidden");
-        $("[data-group='group-liberty']").removeClass("hidden");
-      } else {
-        // Otherwise show only regular headers
-        $(".header")
-          .not("[data-mason='true']")
-          .not("[data-liberty='true']")
-          .removeClass("hidden");
-      }
-    } else {
-      $(".header").not(this).addClass("hidden");
-      $(this)
-        .siblings(`.sub-header[data-group='${group}']`)
-        .removeClass("hidden");
-    }
-  });
+       $(".sub-header, .item").addClass("hidden");
+       if (isExpanded) {
+         // Show regular headers and handle special sections
+         if ($("[data-mason='true']").not(".hidden").length > 0) {
+           // If Mason section is active, keep Mason headers visible
+           $("[data-mason='true']").removeClass("hidden");
+           $("[data-group='group-mason']").removeClass("hidden");
+         } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
+           // If Liberty section is active, keep Liberty headers visible
+           $("[data-liberty='true']").removeClass("hidden");
+           $("[data-group='group-liberty']").removeClass("hidden");
+         } else {
+           // Otherwise show only regular headers
+           $(".header")
+             .not("[data-mason='true']")
+             .not("[data-liberty='true']")
+             .removeClass("hidden");
+         }
+       } else {
+         $(".header").not(this).addClass("hidden");
+         $(this)
+           .siblings(`.sub-header[data-group='${group}']`)
+           .removeClass("hidden");
+       }
+     });
 
-  // ================================
-  // Sub-header click (unchanged behavior)
-  // ================================
-  $(".sub-header").click(function () {
-    const group = $(this).data("group");
-    const isExpanded =
-      $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
+     // ================================
+     // SUBHEADER CLICK FUNCTION
+     // ================================
+     $(".sub-header").click(function () {
+       const group = $(this).data("group");
+       const isExpanded =
+         $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
 
-    if (!isExpanded) {
-      // Hide all items and other subheaders
-      $(".item, .sub-header").addClass("hidden");
-      // Show current subheader
-      $(this).removeClass("hidden");
-      // Show items until next subheader
-      $(this).nextUntil(".sub-header", ".item").removeClass("hidden");
-      $(".content").empty(); // [ADDED LINE]
-    } else {
-      // Show only sibling subheaders with same group
-      $(`[data-group='${group}'].sub-header`).removeClass("hidden");
-      // Hide all items
-      $(".item").addClass("hidden");
+       if (!isExpanded) {
+         // Hide all items and other subheaders
+         $(".item, .sub-header").addClass("hidden");
+         // Show current subheader
+         $(this).removeClass("hidden");
+         // Show items until next subheader
+         const items = $(this)
+           .nextUntil(".sub-header", ".item")
+           .removeClass("hidden");
 
-      // Clear loaded text & note box
-      $(".content").empty();
-    }
-  });
+         // -----------------------------
+         // Add per-subheader note box below items
+         // -----------------------------
+         const subheaderId = $(this).data("id") || $(this).text().trim();
+         const noteKey = `${subheaderId}::note`;
 
-  // ================================
-  // Content item click (LOAD + NOTES using appData)
-  // ================================
-  $(".item").click(function () {
-    $(".item").removeClass("active");
-    $(this).addClass("active");
+         // Remove existing subheader note box
+         $("#subheaderNoteBox, .subheaderToggleBtn").remove();
 
-    const file = $(this).data("file");
-    const divId = $(this).data("id");
+         // Create new textarea for subheader note
+         const savedNote = appData.notes[noteKey] || "";
+         const noteBox = $(`
+      <textarea id="subheaderNoteBox"
+        placeholder="Type your subheader note..."
+        style="
+          display: block;
+          width: calc(100% - 40px);
+          margin-top: 1em;
+          margin-bottom: 0.3em;
+          font-size: 0.9em;
+          color: #ffffe0;
+          background: transparent;
+          border: 1px solid rgba(255,255,224,0.3);
+          padding: 4px;
+          resize: vertical;
+        "
+      >${savedNote}</textarea>
+    `);
 
-    $(".content").load(file + " #" + divId, function () {
-      // 1) Remove any existing note box and prepend new one
-      $("#itemNoteBox").remove();
-      const noteKey = `${divId}::note`;
-      const savedNote = appData.notes[noteKey] || "";
-      const noteBox = $(
-        `<textarea id="itemNoteBox"
-          placeholder="Type your note..."
-          style="
-            display: block;
-            width: calc(100% - 40px);
-            margin-bottom: 1em;
-            font-size: 0.9em;
-            color: #ffffe0;
-            background: transparent;
-            border: 1px solid rgba(255,255,224,0.3);
-            padding: 4px;
-            resize: vertical;
-          ">${savedNote}</textarea>`
-      );
-      $(".content").prepend(noteBox);
+         // Insert after last item of this subheader
+         if (items.length > 0) {
+           items.last().after(noteBox);
+         } else {
+           $(this).after(noteBox);
+         }
 
-      // Auto-grow and save note to appData
-      noteBox.on("input", function () {
-        this.style.height = "auto";
-        this.style.height = this.scrollHeight + "px";
-        const val = $(this).val().trim();
-        if (val) {
-          appData.notes[noteKey] = val;
-        } else {
-          delete appData.notes[noteKey];
-        }
-        saveAppData();
-      });
+         // Default collapsed state
+         noteBox.css({ height: "2em", overflow: "hidden" });
 
-      // 2) Wrap text nodes in spans (skip the note box)
-      $(".content")
-        .find("*")
-        .not("#itemNoteBox")
-        .contents()
-        .each(function () {
-          if (this.nodeType === 3 && this.textContent.length > 0) {
-            let cleaned = this.textContent.replace(/\n/g, "");
-            if (
-              $(this).parent().is(".content") ||
-              $(this).is($(this).parent().contents().get(0))
-            ) {
-              cleaned = cleaned.replace(/^\s+/, "");
-            }
-            const parts = cleaned.split(/(\s+)/);
-            const wrapped = parts
-              .map((part) => {
-                if (/^\s+$/.test(part)) return part;
-                if ($(this).closest(".content-nav").length) return part;
-                return `<span class="noteWord">${part}</span>`;
-              })
-              .join("");
-            $(this).replaceWith(wrapped);
+         // Create expand/collapse toggle button
+         const toggleBtn = $(
+           `<button class="subheaderToggleBtn">+</button>`
+         ).css({
+           display: "block",
+           margin: "0.5em auto",
+           padding: "0",
+           width: "1.5em",
+           height: "1.5em",
+           "line-height": "1.5em",
+           "text-align": "center",
+           "font-size": "1em",
+           "border-radius": "50%",
+           border: "1px solid rgba(255,255,224,0.5)",
+           background: "transparent",
+           color: "#ffffe0",
+           cursor: "pointer",
+         });
+
+         // Toggle expand/collapse
+         toggleBtn.on("click", function (e) {
+           e.stopPropagation(); // prevent accidental propagation
+           if (noteBox.hasClass("expanded")) {
+             noteBox
+               .removeClass("expanded")
+               .css({ height: "2em", overflow: "hidden" });
+           } else {
+             noteBox.addClass("expanded");
+             noteBox.css({
+               height: noteBox[0].scrollHeight + "px",
+               overflow: "visible",
+             });
+           }
+         });
+
+         // Insert button after textarea
+         noteBox.before(toggleBtn);
+
+         // Auto-grow and save note to appData
+         noteBox.on("input", function () {
+           if (noteBox.hasClass("expanded")) {
+             this.style.height = "auto";
+             this.style.height = this.scrollHeight + "px";
+           }
+           const val = $(this).val().trim();
+           if (val) {
+             appData.notes[noteKey] = val;
+           } else {
+             delete appData.notes[noteKey];
+           }
+           saveAppData();
+         });
+       } else {
+         // Show only sibling subheaders with same group
+         $(`[data-group='${group}'].sub-header`).removeClass("hidden");
+         // Hide all items
+         $(".item").addClass("hidden");
+         // Remove subheader note box + toggle
+         $("#subheaderNoteBox, .subheaderToggleBtn").remove();
+         // Clear content area
+         $(".content").empty();
+       }
+     });
+
+     // ================================
+     // ITEM CLICK FUNCTION
+     // ================================
+     $(".item").click(function () {
+       $(".item").removeClass("active");
+       $(this).addClass("active");
+
+       const file = $(this).data("file");
+       const divId = $(this).data("id");
+
+       $(".content").load(file + " #" + divId, function () {
+         // 1) Remove any existing note box + toggle, then prepend new one
+         $("#itemNoteBox, .itemToggleBtn").remove();
+         const noteKey = `${divId}::note`;
+         const savedNote = appData.notes[noteKey] || "";
+
+         const noteBox = $(`
+      <textarea id="itemNoteBox"
+        placeholder="Type your note..."
+        style="
+          display: block;
+          width: calc(100% - 40px);
+          margin-bottom: 0.3em;
+          font-size: 0.9em;
+          color: #ffffe0;
+          background: transparent;
+          border: 1px solid rgba(255,255,224,0.3);
+          padding: 4px;
+          resize: vertical;
+        "
+      >${savedNote}</textarea>
+    `);
+         $(".content").prepend(noteBox);
+
+         // Default collapsed state
+         noteBox.css({ height: "2em", overflow: "hidden" });
+
+         // Create expand/collapse toggle button
+         const toggleBtn = $(`<button class="itemToggleBtn">+</button>`).css({
+           display: "block",
+           margin: "0.5em auto",
+           padding: "0",
+           width: "1.5em",
+           height: "1.5em",
+           "line-height": "1.5em",
+           "text-align": "center",
+           "font-size": "1em",
+           "border-radius": "50%",
+           border: "1px solid rgba(255,255,224,0.5)",
+           background: "transparent",
+           color: "#ffffe0",
+           cursor: "pointer",
+         });
+
+        toggleBtn.on("click", function (e) {
+          e.stopPropagation(); // prevent it being caught as word click
+          if (noteBox.hasClass("expanded")) {
+            noteBox
+              .removeClass("expanded")
+              .css({ height: "2em", overflow: "hidden" });
+          } else {
+            noteBox.addClass("expanded");
+            noteBox.css({
+              height: noteBox[0].scrollHeight + "px",
+              overflow: "visible",
+            });
           }
         });
 
-      // 3) Remove empty noteWord spans
-      $(".content")
-        .find(".noteWord")
-        .filter(function () {
-          return $(this).text().trim() === "";
-        })
-        .remove();
+        
 
-      // 4) Highlight words with saved notes (from appData)
-      $(".noteWord").each(function () {
-        const word = $(this).text();
-        const key = `${divId}::${word}`;
-        if (appData.notes[key]) $(this).addClass("has-note");
-      });
+         // Insert button after note box
+         noteBox.before(toggleBtn);
 
-      // 5) Add click handler for note overlay (reads/writes appData)
-      $(".noteWord").on("click", function () {
-        if ($(this).closest(".content-item").length) return;
-        const activeWord = $(this).text();
-        const key = `${divId}::${activeWord}`;
-        const existingNote = appData.notes[key] || "";
-        $("#noteInput").val(existingNote);
-        $("#noteOverlay").removeClass("hidden").data("note-key", key);
-        $("#overlayBackdrop").addClass("visible");
-      });
+         // Auto-grow and save note to appData
+         noteBox.on("input", function () {
+           if (noteBox.hasClass("expanded")) {
+             this.style.height = "auto";
+             this.style.height = this.scrollHeight + "px";
+           }
+           const val = $(this).val().trim();
+           if (val) {
+             appData.notes[noteKey] = val;
+           } else {
+             delete appData.notes[noteKey];
+           }
+           saveAppData();
+         });
 
-      // 6) Optional: scrollTop button & spacing
-      $(".content").append('<button id="scrollTopBtn"></button>');
-      $(".content").append('<div style="height: 30em;"></div>');
-    });
-  });
+         // 2) Wrap text nodes in spans (skip the note box)
+         $(".content")
+           .find("*")
+           .not("#itemNoteBox, .itemToggleBtn")
+           .contents()
+           .each(function () {
+             if (this.nodeType === 3 && this.textContent.length > 0) {
+               let cleaned = this.textContent.replace(/\n/g, "");
+               if (
+                 $(this).parent().is(".content") ||
+                 $(this).is($(this).parent().contents().get(0))
+               ) {
+                 cleaned = cleaned.replace(/^\s+/, "");
+               }
+               const parts = cleaned.split(/(\s+)/);
+               const wrapped = parts
+                 .map((part) => {
+                   if (/^\s+$/.test(part)) return part;
+                   if ($(this).closest(".content-nav").length) return part;
+                   return `<span class="noteWord">${part}</span>`;
+                 })
+                 .join("");
+               $(this).replaceWith(wrapped);
+             }
+           });
 
-  // ================================
-  // Content-item switcher (unchanged)
-  // ================================
-  $(document).on("click", ".content-item", function () {
-    const targetId = $(this).data("content");
-    const container = $(this).closest(".content-container");
-    container.find(".content-text").addClass("hidden");
-    container.find("#" + targetId).removeClass("hidden");
-  });
+         // 3) Remove empty noteWord spans
+         $(".content")
+           .find(".noteWord")
+           .filter(function () {
+             return $(this).text().trim() === "";
+           })
+           .remove();
 
-  // ================================
-  // Overlay save/close -> appData.notes
-  // ================================
-  $("#overlayBackdrop").click(function () {
-    const key = $("#noteOverlay").data("note-key");
-    const value = $("#noteInput").val().trim();
+         // 4) Highlight words with saved notes (from appData)
+         $(".noteWord").each(function () {
+           const word = $(this).text();
+           const key = `${divId}::${word}`;
+           if (appData.notes[key]) $(this).addClass("has-note");
+         });
 
-    if (value) {
-      appData.notes[key] = value;
-    } else {
-      delete appData.notes[key];
-    }
-    saveAppData();
+         // 5) Add click handler for note overlay (reads/writes appData)
+         $(".noteWord").on("click", function () {
+           if ($(this).closest(".content-item").length) return;
+           const activeWord = $(this).text();
+           const key = `${divId}::${activeWord}`;
+           const existingNote = appData.notes[key] || "";
+           $("#noteInput").val(existingNote);
+           $("#noteOverlay").removeClass("hidden").data("note-key", key);
+           $("#overlayBackdrop").addClass("visible");
+         });
 
-    // Update highlight
-    const [sectionId, word] = key.split("::");
-    $(".noteWord").each(function () {
-      if ($(this).text() === word) {
-        if (value) $(this).addClass("has-note");
-        else $(this).removeClass("has-note");
-      }
-    });
+         // 6) Optional: scrollTop button & spacing
+         $(".content").append('<button id="scrollTopBtn"></button>');
+         $(".content").append('<div style="height: 30em;"></div>');
+       });
+     });
 
-    $("#noteOverlay").addClass("hidden");
-    $("#overlayBackdrop").removeClass("visible");
-  });
+     // ================================
+     // Content-item switcher (unchanged)
+     // ================================
+     $(document).on("click", ".content-item", function () {
+       const targetId = $(this).data("content");
+       const container = $(this).closest(".content-container");
+       container.find(".content-text").addClass("hidden");
+       container.find("#" + targetId).removeClass("hidden");
+     });
 
-  // Auto-grow textarea height
-  $("#noteInput").on("input", function () {
-    this.style.height = "auto";
-    this.style.height = this.scrollHeight + "px";
-  });
+     // ================================
+     // Overlay save/close -> appData.notes
+     // ================================
+     $("#overlayBackdrop").click(function () {
+       const key = $("#noteOverlay").data("note-key");
+       const value = $("#noteInput").val().trim();
 
-  $("#closeNoteBtn").click(function () {
-    const key = $("#noteOverlay").data("note-key");
-    const value = $("#noteInput").val().trim();
+       if (value) {
+         appData.notes[key] = value;
+       } else {
+         delete appData.notes[key];
+       }
+       saveAppData();
 
-    if (value) {
-      appData.notes[key] = value;
+       // Update highlight
+       const [sectionId, word] = key.split("::");
+       $(".noteWord").each(function () {
+         if ($(this).text() === word) {
+           if (value) $(this).addClass("has-note");
+           else $(this).removeClass("has-note");
+         }
+       });
 
-      // Highlight the word after saving
-      const [sectionId, word] = key.split("::");
-      $(".content")
-        .find(".noteWord")
-        .each(function () {
-          if ($(this).text() === word) {
-            $(this).addClass("has-note");
-          }
-        });
-    } else {
-      delete appData.notes[key];
-    }
+       $("#noteOverlay").addClass("hidden");
+       $("#overlayBackdrop").removeClass("visible");
+     });
 
-    saveAppData();
-    $("#noteOverlay").addClass("hidden");
-    $("#overlayBackdrop").removeClass("visible");
-  });
+     // Auto-grow textarea height
+     $("#noteInput").on("input", function () {
+       this.style.height = "auto";
+       this.style.height = this.scrollHeight + "px";
+     });
 
-  $("#noteBox").click(function (event) {
-    event.stopPropagation(); // Stop click from bubbling to #overlayBackdrop
-  });
+     $("#closeNoteBtn").click(function () {
+       const key = $("#noteOverlay").data("note-key");
+       const value = $("#noteInput").val().trim();
 
-  // ================================
-  // Background/theme/font/size/width using appData
-  // ================================
-  function updateBackground(backgroundValue) {
-    const styleSheet = document.styleSheets[0];
-    const rules = styleSheet && (styleSheet.cssRules || styleSheet.rules);
-    if (!rules) return;
+       if (value) {
+         appData.notes[key] = value;
 
-    for (let i = 0; i < rules.length; i++) {
-      if (rules[i].selectorText === "body::before") {
-        rules[i].style.background = backgroundValue;
-        appData.background = backgroundValue;
-        saveAppData();
-        break;
-      }
-    }
-  }
+         // Highlight the word after saving
+         const [sectionId, word] = key.split("::");
+         $(".content")
+           .find(".noteWord")
+           .each(function () {
+             if ($(this).text() === word) {
+               $(this).addClass("has-note");
+             }
+           });
+       } else {
+         delete appData.notes[key];
+       }
 
-  // Apply saved UI
-  applyUIFromAppData();
+       saveAppData();
+       $("#noteOverlay").addClass("hidden");
+       $("#overlayBackdrop").removeClass("visible");
+     });
 
-  // Toggle rows (unchanged)
-  $(".control-toggle").click(function () {
-    const type = $(this).data("type");
-    const targetRow = $(`#${type}-row`);
+     $("#noteBox").click(function (event) {
+       event.stopPropagation(); // Stop click from bubbling to #overlayBackdrop
+     });
 
-    if (targetRow.css("display") === "flex") {
-      targetRow.hide();
-      return;
-    }
-    $(".option-row").hide();
-    targetRow.css("display", "flex");
-  });
+     // ================================
+     // Background/theme/font/size/width using appData
+     // ================================
+     function updateBackground(backgroundValue) {
+       const styleSheet = document.styleSheets[0];
+       const rules = styleSheet && (styleSheet.cssRules || styleSheet.rules);
+       if (!rules) return;
 
-  // Color buttons -> gradient theme
-  $("#colors-row button")
-    .not("#whiteThemeBtn")
-    .click(function () {
-      const gradient = $(this).data("gradient");
-      $("html, body").removeClass("white-theme").addClass("gradient-theme");
-      updateBackground(gradient);
-      appData.theme = "gradient";
-      saveAppData();
-    });
+       for (let i = 0; i < rules.length; i++) {
+         if (rules[i].selectorText === "body::before") {
+           rules[i].style.background = backgroundValue;
+           appData.background = backgroundValue;
+           saveAppData();
+           break;
+         }
+       }
+     }
 
-  // White theme
-  $("#whiteThemeBtn").click(function () {
-    $("html, body").removeClass("gradient-theme").addClass("white-theme");
-    appData.theme = "white";
-    saveAppData();
-  });
+     // Apply saved UI
+     applyUIFromAppData();
 
-  // Font buttons
-  $("#fonts-row button").click(function () {
-    const fontFamily = $(this).data("font");
-    $("body").css("font-family", fontFamily);
-    appData.font = fontFamily;
-    saveAppData();
-  });
+     // Toggle rows (unchanged)
+     $(".control-toggle").click(function () {
+       const type = $(this).data("type");
+       const targetRow = $(`#${type}-row`);
 
-  // Size buttons
-  $("#sizes-row button").click(function () {
-    const fontSize = $(this).data("size");
-    $(".content").css("font-size", fontSize);
-    appData.fontSize = fontSize;
-    saveAppData();
-  });
+       if (targetRow.css("display") === "flex") {
+         targetRow.hide();
+         return;
+       }
+       $(".option-row").hide();
+       targetRow.css("display", "flex");
+     });
 
-  // Width buttons
-  $("#width-row button").click(function () {
-    const width = $(this).data("width");
-    $(".content").css("max-width", width);
-    appData.contentWidth = width;
-    saveAppData();
-  });
+     // Color buttons -> gradient theme
+     $("#colors-row button")
+       .not("#whiteThemeBtn")
+       .click(function () {
+         const gradient = $(this).data("gradient");
+         $("html, body").removeClass("white-theme").addClass("gradient-theme");
+         updateBackground(gradient);
+         appData.theme = "gradient";
+         saveAppData();
+       });
 
-  // ================================
-  // Layout toggle using appData.layout
-  // ================================
-  const layoutToggle = $("#layout-toggle");
-  const container = $(".container");
+     // White theme
+     $("#whiteThemeBtn").click(function () {
+       $("html, body").removeClass("gradient-theme").addClass("white-theme");
+       appData.theme = "white";
+       saveAppData();
+     });
 
-  if (appData.layout === "vertical") {
-    container.addClass("vertical-layout");
-    layoutToggle.html("↔");
-  }
+     // Font buttons
+     $("#fonts-row button").click(function () {
+       const fontFamily = $(this).data("font");
+       $("body").css("font-family", fontFamily);
+       appData.font = fontFamily;
+       saveAppData();
+     });
 
-  layoutToggle.click(function () {
-    container.toggleClass("vertical-layout");
-    // Reset all hidden states when toggling layout
-    $(".sub-header, .item").addClass("hidden");
-    $(".header").removeClass("hidden");
+     // Size buttons
+     $("#sizes-row button").click(function () {
+       const fontSize = $(this).data("size");
+       $(".content").css("font-size", fontSize);
+       appData.fontSize = fontSize;
+       saveAppData();
+     });
 
-    if (container.hasClass("vertical-layout")) {
-      appData.layout = "vertical";
-      $(this).html("↔");
-    } else {
-      appData.layout = "horizontal";
-      $(this).html("↕");
-    }
-    saveAppData();
-    applyUIFromAppData();
-  });
+     // Width buttons
+     $("#width-row button").click(function () {
+       const width = $(this).data("width");
+       $(".content").css("max-width", width);
+       appData.contentWidth = width;
+       saveAppData();
+     });
 
-  // ================================
-  // Service worker (kept as in your script)
-  // ================================
-  if ("serviceWorker" in navigator) {
-    if (
-      window.location.hostname !== "127.0.0.1" &&
-      window.location.hostname !== "localhost"
-    ) {
-      navigator.serviceWorker.register("/service-worker.js");
-    } else {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let registration of registrations) {
-          registration.unregister();
-        }
-      });
-    }
-  }
+     // ================================
+     // Layout toggle using appData.layout
+     // ================================
+     const layoutToggle = $("#layout-toggle");
+     const container = $(".container");
 
-  // Misc handlers (kept)
-  $("#toggle-classification-bar").click(function () {
-    $("#classification-bar").toggle();
-  });
+     if (appData.layout === "vertical") {
+       container.addClass("vertical-layout");
+       layoutToggle.html("↔");
+     }
 
-  $(document).on("click", "#scrollTopBtn", function () {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  });
-});
+     layoutToggle.click(function () {
+       container.toggleClass("vertical-layout");
+       // Reset all hidden states when toggling layout
+       $(".sub-header, .item").addClass("hidden");
+       $(".header").removeClass("hidden");
+
+       if (container.hasClass("vertical-layout")) {
+         appData.layout = "vertical";
+         $(this).html("↔");
+       } else {
+         appData.layout = "horizontal";
+         $(this).html("↕");
+       }
+       saveAppData();
+       applyUIFromAppData();
+     });
+
+     // ================================
+     // Service worker (kept as in your script)
+     // ================================
+     if ("serviceWorker" in navigator) {
+       if (
+         window.location.hostname !== "127.0.0.1" &&
+         window.location.hostname !== "localhost"
+       ) {
+         navigator.serviceWorker.register("/service-worker.js");
+       } else {
+         navigator.serviceWorker.getRegistrations().then((registrations) => {
+           for (let registration of registrations) {
+             registration.unregister();
+           }
+         });
+       }
+     }
+
+     // Misc handlers (kept)
+     $("#toggle-classification-bar").click(function () {
+       $("#classification-bar").toggle();
+     });
+
+     $(document).on("click", "#scrollTopBtn", function () {
+       window.scrollTo({ top: 0, behavior: "smooth" });
+     });
+   });
