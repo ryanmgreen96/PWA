@@ -571,110 +571,62 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // ITEM CLICK FUNCTION
      // ================================
      $(".item").click(function () {
+       // Mark active
        $(".item").removeClass("active");
        $(this).addClass("active");
 
        const file = $(this).data("file");
        const divId = $(this).data("id");
 
+       // Load item content
        $(".content").load(file + " #" + divId, function () {
-         // 1) Remove any existing note box + toggle, then prepend new one
-         $("#itemNoteBox, .itemToggleBtn").remove();
+         // Remove previous note box and floating button
+         $("#itemNoteBox, #itemFloatBtn").remove();
+
+         // Create item note box
          const noteKey = `${divId}::note`;
          const savedNote = appData.notes[noteKey] || "";
-
          const noteBox = $(`
       <textarea id="itemNoteBox"
         placeholder="Type your note..."
         style="
           display: block;
           width: calc(100% - 40px);
-          margin-bottom: 0.3em;
+          margin-bottom: 1em;
           font-size: 0.9em;
           color: #ffffe0;
           background: transparent;
           border: 1px solid rgba(255,255,224,0.3);
           padding: 4px;
           resize: vertical;
-        "
-      >${savedNote}</textarea>
+        ">${savedNote}</textarea>
     `);
          $(".content").prepend(noteBox);
 
-         // Default collapsed state
-         noteBox.css({ height: "2em", overflow: "hidden" });
-
-         // Create expand/collapse toggle button
-         const toggleBtn = $(`<button class="itemToggleBtn">+</button>`).css({
-           display: "block",
-           margin: "0.5em auto",
-           padding: "0",
-           width: "1.5em",
-           height: "1.5em",
-           "line-height": "1.5em",
-           "text-align": "center",
-           "font-size": "1em",
-           "border-radius": "50%",
-           border: "1px solid rgba(255,255,224,0.5)",
-           background: "transparent",
-           color: "#ffffe0",
-           cursor: "pointer",
-         });
-
-        toggleBtn.on("click", function (e) {
-          e.stopPropagation(); // prevent it being caught as word click
-          if (noteBox.hasClass("expanded")) {
-            noteBox
-              .removeClass("expanded")
-              .css({ height: "2em", overflow: "hidden" });
-          } else {
-            noteBox.addClass("expanded");
-            noteBox.css({
-              height: noteBox[0].scrollHeight + "px",
-              overflow: "visible",
-            });
-          }
-        });
-
-        
-
-         // Insert button after note box
-         noteBox.before(toggleBtn);
-
-         // Auto-grow and save note to appData
-         noteBox.on("input", function () {
-           if (noteBox.hasClass("expanded")) {
+         // Auto-grow + save note
+         noteBox
+           .on("input", function () {
              this.style.height = "auto";
              this.style.height = this.scrollHeight + "px";
-           }
-           const val = $(this).val().trim();
-           if (val) {
-             appData.notes[noteKey] = val;
-           } else {
-             delete appData.notes[noteKey];
-           }
-           saveAppData();
-         });
+             const val = $(this).val().trim();
+             if (val) appData.notes[noteKey] = val;
+             else delete appData.notes[noteKey];
+             saveAppData();
+           })
+           .trigger("input");
 
-         // 2) Wrap text nodes in spans (skip the note box)
+         // Wrap text nodes in spans (skip note box)
          $(".content")
            .find("*")
-           .not("#itemNoteBox, .itemToggleBtn")
+           .not("#itemNoteBox")
            .contents()
            .each(function () {
-             if (this.nodeType === 3 && this.textContent.length > 0) {
+             if (this.nodeType === 3 && this.textContent.trim().length > 0) {
                let cleaned = this.textContent.replace(/\n/g, "");
-               if (
-                 $(this).parent().is(".content") ||
-                 $(this).is($(this).parent().contents().get(0))
-               ) {
-                 cleaned = cleaned.replace(/^\s+/, "");
-               }
                const parts = cleaned.split(/(\s+)/);
                const wrapped = parts
                  .map((part) => {
                    if (/^\s+$/.test(part)) return part;
-                   if ($(this).closest(".content-nav").length) return part;
                    return `<span class="noteWord">${part}</span>`;
                  })
                  .join("");
@@ -682,7 +634,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
              }
            });
 
-         // 3) Remove empty noteWord spans
+         // Remove empty noteWord spans
          $(".content")
            .find(".noteWord")
            .filter(function () {
@@ -690,29 +642,94 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
            })
            .remove();
 
-         // 4) Highlight words with saved notes (from appData)
+         // Highlight words with saved notes
          $(".noteWord").each(function () {
-           const word = $(this).text();
-           const key = `${divId}::${word}`;
+           const key = `${divId}::${$(this).text()}`;
            if (appData.notes[key]) $(this).addClass("has-note");
          });
 
-         // 5) Add click handler for note overlay (reads/writes appData)
-         $(".noteWord").on("click", function () {
-           if ($(this).closest(".content-item").length) return;
-           const activeWord = $(this).text();
-           const key = `${divId}::${activeWord}`;
-           const existingNote = appData.notes[key] || "";
-           $("#noteInput").val(existingNote);
-           $("#noteOverlay").removeClass("hidden").data("note-key", key);
+         // Add click handler for words
+         $(".noteWord")
+           .off("click")
+           .on("click", function () {
+             const key = `${divId}::${$(this).text()}`;
+             $("#noteInput").val(appData.notes[key] || "");
+             $("#noteOverlay").removeClass("hidden").data("note-key", key);
+             $("#overlayBackdrop").addClass("visible");
+           });
+
+         // Floating button for modal access
+         // Floating button for modal access
+         $("#itemFloatBtn").remove();
+         const floatBtn = $('<button id="itemFloatBtn">✎</button>')
+           .css({
+             position: "fixed",
+             bottom: "1em",
+             right: "1em",
+             width: "2em",
+             height: "2em",
+             "border-radius": "50%",
+             border: "1px solid rgba(255,255,224,0.5)",
+             background: "transparent",
+             color: "#ffffe0",
+             cursor: "pointer",
+             "z-index": 9999,
+           })
+           .appendTo("body");
+
+         // Function to update button size based on window width
+         function updateFloatBtnSize() {
+           if ($(window).width() < 700) {
+             floatBtn.css({
+               width: "1em",
+               height: "1em",
+               "font-size": "0.7em",
+               "line-height": "1em",
+             });
+           } else {
+             floatBtn.css({
+               width: "2em",
+               height: "2em",
+               "font-size": "1em",
+               "line-height": "2em",
+             });
+           }
+         }
+
+         // Initial call
+         updateFloatBtnSize();
+
+         // Update on window resize
+         $(window).on("resize", updateFloatBtnSize);
+
+         floatBtn.on("click", function () {
+           const currentText = appData.notes[noteKey] || "";
+           $("#noteInput").val(currentText);
+           $("#noteOverlay").removeClass("hidden").data("note-key", noteKey);
            $("#overlayBackdrop").addClass("visible");
          });
 
-         // 6) Optional: scrollTop button & spacing
+         // Sync modal back to note box
+         $("#noteInput")
+           .off("input")
+           .on("input", function () {
+             const key = $("#noteOverlay").data("note-key");
+             const val = $(this).val();
+             appData.notes[key] = val;
+             saveAppData();
+
+             // Update noteBox if currently loaded
+             if ($("#itemNoteBox").length && key === noteKey) {
+               $("#itemNoteBox").val(val).trigger("input");
+             }
+           });
+
+         // Optional: scrollTop & spacing
          $(".content").append('<button id="scrollTopBtn"></button>');
          $(".content").append('<div style="height: 30em;"></div>');
        });
      });
+
 
      // ================================
      // Content-item switcher (unchanged)
