@@ -608,7 +608,8 @@
 
   #closeNoteBtn {
       position: absolute;
-      top: 10px;
+      bottom: 10px;
+      /* instead of top */
       right: 12px;
       background: none;
       border: none;
@@ -722,8 +723,33 @@
   }
 
   
+  /* hide group/subheader note textboxes on small screens, keep item note boxes visible */
+  @media screen and (max-width: 1000px) {
 
+      /* only target subheader/group boxes (not content item boxes) */
+      /* textarea#subheaderNoteBox,
+      textarea.groupNotes {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: hidden !important;
+      } */
+  }
 
+  
+/* @media (max-width: 1000px) {
+    .note-box {
+        display: none !important;
+    }
+}
+
+@media screen and (max-width: 1000px) {
+    .groupNotes {
+        display: none !important;
+    }
+} */
 
 
   @media (min-width: 900px) {

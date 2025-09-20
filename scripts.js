@@ -378,194 +378,219 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // ================================
      // Header click logic (unchanged behavior)
      // ================================
-    $(".header").click(function () {
-      const group = $(this).data("group");
+     $(".header").click(function () {
+       const group = $(this).data("group");
 
-      // Special handling for Mason and Liberty (keep prior behavior)
-      if (group === "group-mason" || group === "group-liberty") {
-        const isLibertyClick = group === "group-liberty";
-        const childHeadersVisible = isLibertyClick
-          ? $("[data-liberty='true']").not(".hidden").length > 0
-          : $("[data-mason='true']").not(".hidden").length > 0;
+       // Special handling for Mason and Liberty (keep prior behavior)
+       if (group === "group-mason" || group === "group-liberty") {
+         const isLibertyClick = group === "group-liberty";
+         const childHeadersVisible = isLibertyClick
+           ? $("[data-liberty='true']").not(".hidden").length > 0
+           : $("[data-mason='true']").not(".hidden").length > 0;
 
-        if (childHeadersVisible) {
-          if (isLibertyClick) {
-            $("[data-liberty='true']").addClass("hidden");
-          } else {
-            $("[data-mason='true']").addClass("hidden");
-          }
-          $(".header")
-            .not("[data-mason='true']")
-            .not("[data-liberty='true']")
-            .removeClass("hidden");
-        } else {
-          $(".header")
-            .not(this)
-            .not(
-              isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
-            )
-            .addClass("hidden");
-          if (isLibertyClick) $("[data-liberty='true']").removeClass("hidden");
-          else $("[data-mason='true']").removeClass("hidden");
-        }
+         if (childHeadersVisible) {
+           if (isLibertyClick) {
+             $("[data-liberty='true']").addClass("hidden");
+           } else {
+             $("[data-mason='true']").addClass("hidden");
+           }
+           $(".header")
+             .not("[data-mason='true']")
+             .not("[data-liberty='true']")
+             .removeClass("hidden");
+         } else {
+           $(".header")
+             .not(this)
+             .not(
+               isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
+             )
+             .addClass("hidden");
+           if (isLibertyClick) $("[data-liberty='true']").removeClass("hidden");
+           else $("[data-mason='true']").removeClass("hidden");
+         }
 
-        // Always hide all subheaders, items, and subheader note boxes
-        $(
-          ".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn"
-        ).addClass("hidden");
-        $(".content").empty();
-        return;
-      }
+         // Always hide all subheaders, items, and subheader note boxes
+         $(
+           ".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn"
+         ).addClass("hidden");
+         $(".content").empty();
+         return;
+       }
 
-      // Modified behavior for other headers
-      const isExpanded =
-        $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
-          .length > 0;
+       // Modified behavior for other headers
+       const isExpanded =
+         $(this).siblings(`.sub-header[data-group='${group}']`).not(".hidden")
+           .length > 0;
 
-      $(".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn").addClass(
-        "hidden"
-      );
-      $(".content").empty(); // clear content
+       $(".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn").addClass(
+         "hidden"
+       );
+       $(".content").empty(); // clear content
 
-      if (isExpanded) {
-        // Show regular headers and handle special sections
-        if ($("[data-mason='true']").not(".hidden").length > 0) {
-          $("[data-mason='true']").removeClass("hidden");
-          $("[data-group='group-mason']").removeClass("hidden");
-        } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
-          $("[data-liberty='true']").removeClass("hidden");
-          $("[data-group='group-liberty']").removeClass("hidden");
-        } else {
-          $(".header")
-            .not("[data-mason='true']")
-            .not("[data-liberty='true']")
-            .removeClass("hidden");
-        }
-      } else {
-        $(".header").not(this).addClass("hidden");
-        $(this)
-          .siblings(`.sub-header[data-group='${group}']`)
-          .removeClass("hidden");
-      }
+       if (isExpanded) {
+         // Show regular headers and handle special sections
+         if ($("[data-mason='true']").not(".hidden").length > 0) {
+           $("[data-mason='true']").removeClass("hidden");
+           $("[data-group='group-mason']").removeClass("hidden");
+         } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
+           $("[data-liberty='true']").removeClass("hidden");
+           $("[data-group='group-liberty']").removeClass("hidden");
+         } else {
+           $(".header")
+             .not("[data-mason='true']")
+             .not("[data-liberty='true']")
+             .removeClass("hidden");
+         }
+       } else {
+         $(".header").not(this).addClass("hidden");
+         $(this)
+           .siblings(`.sub-header[data-group='${group}']`)
+           .removeClass("hidden");
+       }
 
-      // Ensure all items are hidden
-      $(".item").addClass("hidden");
-    });
-
+       // Ensure all items are hidden
+       $(".item").addClass("hidden");
+     });
 
      // ================================
      // SUBHEADER CLICK FUNCTION
      // ================================
-    $(".sub-header").click(function () {
-      const group = $(this).data("group");
-      const isExpanded =
-        $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
+     $(".sub-header").click(function () {
+       const group = $(this).data("group");
+       const isExpanded =
+         $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
 
-      // Always hide other subheader note boxes and toggle buttons
-      $("#subheaderNoteBox, .subheaderToggleBtn").remove();
+       // Always hide other subheader note boxes and toggle buttons
+       $("#subheaderNoteBox, .subheaderToggleBtn").remove();
 
-      if (!isExpanded) {
-        // Hide all items and other subheaders
-        $(".item, .sub-header").addClass("hidden");
-        $(this).removeClass("hidden");
+       const screenIsLarge = window.innerWidth >= 1000;
 
-        // Show items under this subheader
-        const items = $(this)
-          .nextUntil(".sub-header", ".item")
-          .removeClass("hidden");
+       if (!isExpanded) {
+         // Hide all items and other subheaders
+         $(".item, .sub-header").addClass("hidden");
+         $(this).removeClass("hidden");
 
-        // Hide all other note boxes
-        $(".content").empty();
+         // Show items under this subheader
+         const items = $(this)
+           .nextUntil(".sub-header", ".item")
+           .removeClass("hidden");
 
-        // -----------------------------
-        // Add subheader note box
-        // -----------------------------
-        const subheaderId = $(this).data("id") || $(this).text().trim();
-        const noteKey = `${subheaderId}::note`;
-        const savedNote = appData.notes[noteKey] || "";
+         // Hide all other note boxes
+         $(".content").empty();
 
-        const noteBox = $(`
-      <textarea id="subheaderNoteBox" placeholder="Type your subheader note..."
-        style="
-          display:block;
-          width: calc(100% - 40px);
-          margin: 0.5em auto;
-          font-size: 0.9em;
-          color: #ffffe0;
-          background: transparent;
-          border: 1px solid rgba(255,255,224,0.3);
-          padding: 4px;
-          resize: vertical;
-        "
-      >${savedNote}</textarea>
-    `);
+         // -----------------------------
+         // Add subheader note box (all screen sizes)
+         // -----------------------------
+         const subheaderId = $(this).data("id") || $(this).text().trim();
+         const noteKey = `${subheaderId}::note`;
 
-        // Default collapsed state
-        noteBox.css({ height: "2em", overflow: "hidden" });
+         // Only load saved note for large screens
+         const savedNote = screenIsLarge ? appData.notes[noteKey] || "" : "";
 
-        // Create expand/collapse toggle button
-        const toggleBtn = $(
-          '<button class="subheaderToggleBtn">+</button>'
-        ).css({
-          display: "block",
-          margin: "0.3em auto",
-          padding: "0",
-          width: "1.5em",
-          height: "1.5em",
-          "line-height": "1.5em",
-          "text-align": "center",
-          "font-size": "1em",
-          "border-radius": "50%",
-          border: "1px solid rgba(255,255,224,0.5)",
-          background: "transparent",
-          color: "#ffffe0",
-          cursor: "pointer",
-        });
+         const noteBox = $(`
+  <textarea id="subheaderNoteBox" placeholder="Type your subheader note..."
+    style="
+      display:block;
+      width: calc(100% - 40px);
+      margin: 0.5em auto;
+      font-size: 0.9em;
+      color: #ffffe0;
+      background: transparent;
+      border: 1px solid rgba(255,255,224,0.3);
+      padding: 4px;
+      resize: vertical;
+    "
+  >${savedNote}</textarea>
+`);
 
-        // Toggle expand/collapse
-        toggleBtn.on("click", function (e) {
-          e.stopPropagation();
-          if (noteBox.hasClass("expanded")) {
-            noteBox
-              .removeClass("expanded")
-              .css({ height: "2em", overflow: "hidden" });
-          } else {
-            noteBox
-              .addClass("expanded")
-              .css({
-                height: noteBox[0].scrollHeight + "px",
-                overflow: "visible",
-              });
-          }
-        });
+         // Default collapsed state
+         noteBox.css({ height: "2em", overflow: "hidden" });
 
-        // Insert button above noteBox
-        if (items.length > 0) items.last().after(noteBox);
-        else $(this).after(noteBox);
-        noteBox.before(toggleBtn);
+         // Toggle expand/collapse button (unchanged)
+         const toggleBtn = $(
+           '<button class="subheaderToggleBtn">+</button>'
+         ).css({
+           display: "block",
+           margin: "0.3em auto",
+           padding: "0",
+           width: "1.5em",
+           height: "1.5em",
+           "line-height": "1.5em",
+           "text-align": "center",
+           "font-size": "1em",
+           "border-radius": "50%",
+           border: "1px solid rgba(255,255,224,0.5)",
+           background: "transparent",
+           color: "#ffffe0",
+           cursor: "pointer",
+         });
 
-        // Auto-grow and save note
+         toggleBtn.on("click", function (e) {
+           e.stopPropagation();
+           if (noteBox.hasClass("expanded")) {
+             noteBox
+               .removeClass("expanded")
+               .css({ height: "2em", overflow: "hidden" });
+           } else {
+             noteBox
+               .addClass("expanded")
+               .css({
+                 height: noteBox[0].scrollHeight + "px",
+                 overflow: "visible",
+               });
+           }
+         });
+
+         // Insert into DOM
+         if (items.length > 0) items.last().after(noteBox);
+         else $(this).after(noteBox);
+         noteBox.before(toggleBtn);
+
+         // Auto-grow and save only for large screens
+        //  111111111111111111111111111111111111111111111
+        //  noteBox.on("input", function () {
+        //    if (noteBox.hasClass("expanded")) {
+        //      this.style.height = "auto";
+        //      this.style.height = this.scrollHeight + "px";
+        //    }
+
+        //    if (screenIsLarge) {
+        //      const val = $(this).val().trim();
+        //      if (val) appData.notes[noteKey] = val;
+        //      else delete appData.notes[noteKey];
+        //      saveAppData();
+        //    }
+        //  });
+
+        let lastValue = noteBox.val();
         noteBox.on("input", function () {
           if (noteBox.hasClass("expanded")) {
             this.style.height = "auto";
             this.style.height = this.scrollHeight + "px";
           }
-          const val = $(this).val().trim();
-          if (val) appData.notes[noteKey] = val;
-          else delete appData.notes[noteKey];
-          saveAppData();
+
+          if (screenIsLarge) {
+            const val = $(this).val().trim();
+            if (val !== lastValue) {
+              lastValue = val;
+              if (val) appData.notes[noteKey] = val;
+              else delete appData.notes[noteKey];
+              saveAppData();
+            }
+          }
         });
 
-        // Ensure other items remain hidden
-        $(".item").not(items).addClass("hidden");
-      } else {
-        // Collapse: show only sibling subheaders of this group
-        $(`[data-group='${group}'].sub-header`).removeClass("hidden");
-        $(".item").addClass("hidden");
-        $("#subheaderNoteBox, .subheaderToggleBtn").remove();
-        $(".content").empty();
-      }
-    });
+
+         // Ensure other items remain hidden
+         $(".item").not(items).addClass("hidden");
+       } else {
+         // Collapse: show only sibling subheaders of this group
+         $(`[data-group='${group}'].sub-header`).removeClass("hidden");
+         $(".item").addClass("hidden");
+         $("#subheaderNoteBox, .subheaderToggleBtn").remove();
+         $(".content").empty();
+       }
+     });
 
      // ================================
      // ITEM CLICK FUNCTION
@@ -604,16 +629,32 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          $(".content").prepend(noteBox);
 
          // Auto-grow + save note
-         noteBox
-           .on("input", function () {
-             this.style.height = "auto";
-             this.style.height = this.scrollHeight + "px";
-             const val = $(this).val().trim();
-             if (val) appData.notes[noteKey] = val;
-             else delete appData.notes[noteKey];
-             saveAppData();
-           })
-           .trigger("input");
+        //  222222222222222222222222222222222222222222222222222222222
+        //  noteBox
+        //    .on("input", function () {
+        //      this.style.height = "auto";
+        //      this.style.height = this.scrollHeight + "px";
+        //      const val = $(this).val().trim();
+        //      if (val) appData.notes[noteKey] = val;
+        //      else delete appData.notes[noteKey];
+        //      saveAppData();
+        //    })
+        //    .trigger("input");
+
+        let lastValue = noteBox.val();
+        noteBox.on("input", function () {
+          this.style.height = "auto";
+          this.style.height = this.scrollHeight + "px";
+
+          const val = $(this).val().trim();
+          if (val !== lastValue) {
+            lastValue = val;
+            if (val) appData.notes[noteKey] = val;
+            else delete appData.notes[noteKey];
+            saveAppData();
+          }
+        });
+
 
          // Wrap text nodes in spans (skip note box)
          $(".content")
@@ -730,7 +771,6 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        });
      });
 
-
      // ================================
      // Content-item switcher (unchanged)
      // ================================
@@ -768,6 +808,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        $("#overlayBackdrop").removeClass("visible");
      });
 
+    //  11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
      // Auto-grow textarea height
      $("#noteInput").on("input", function () {
        this.style.height = "auto";
