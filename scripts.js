@@ -605,8 +605,25 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        // Load item content
        $(".content").load(file + " #" + divId, function () {
-         // Remove previous note box and floating button
-         $("#itemNoteBox, #itemFloatBtn").remove();
+         // Remove previous note box, select button, and floating button
+         $("#itemNoteBox, #selectAllBtn, #itemFloatBtn").remove();
+
+         // Create select all button
+         const selectAllBtn = $(`
+      <button id="selectAllBtn"
+        style="
+          display: block;
+          margin-bottom: 0.5em;
+          padding: 6px 12px;
+          font-size: 0.85em;
+          color: #ffffe0;
+          background: rgba(255,255,224,0.1);
+          border: 1px solid rgba(255,255,224,0.3);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        ">-</button>
+    `);
 
          // Create item note box
          const noteKey = `${divId}::note`;
@@ -627,6 +644,32 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
         ">${savedNote}</textarea>
     `);
          $(".content").prepend(noteBox);
+         $(".content").prepend(selectAllBtn);
+
+         // Add hover effect for button
+         selectAllBtn.hover(
+           function() { $(this).css("background", "rgba(255,255,224,0.2)"); },
+           function() { $(this).css("background", "rgba(255,255,224,0.1)"); }
+         );
+
+         // Add click handler for select all button
+         selectAllBtn.on("click", function (e) {
+           e.stopPropagation();
+           e.preventDefault();
+           
+           const selection = window.getSelection();
+           const range = document.createRange();
+           
+           // Get all text content except the note box and button
+           const contentDiv = document.querySelector(".content");
+           const loadedContentDiv = contentDiv.querySelector("#" + divId);
+           
+           if (loadedContentDiv) {
+             range.selectNodeContents(loadedContentDiv);
+             selection.removeAllRanges();
+             selection.addRange(range);
+           }
+         });
 
          // Auto-grow + save note
         //  222222222222222222222222222222222222222222222222222222222
