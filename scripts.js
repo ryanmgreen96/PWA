@@ -699,10 +699,10 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
         });
 
 
-         // Wrap text nodes in spans (skip note box)
+         // Wrap text nodes in spans (skip note box and select button)
          $(".content")
            .find("*")
-           .not("#itemNoteBox")
+           .not("#itemNoteBox, #selectAllBtn")
            .contents()
            .each(function () {
              if (this.nodeType === 3 && this.textContent.trim().length > 0) {
