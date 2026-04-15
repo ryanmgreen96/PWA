@@ -381,31 +381,39 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      $(".header").click(function () {
        const group = $(this).data("group");
 
-       // Special handling for Mason and Liberty (keep prior behavior)
-       if (group === "group-mason" || group === "group-liberty") {
+       // Special handling for Mason, Liberty, and Age (keep prior behavior)
+       if (
+         group === "group-mason" ||
+         group === "group-liberty" ||
+         group === "group-age"
+       ) {
          const isLibertyClick = group === "group-liberty";
+         const isAgeClick = group === "group-age";
          const childHeadersVisible = isLibertyClick
            ? $("[data-liberty='true']").not(".hidden").length > 0
+           : isAgeClick
+           ? $("[data-age='true']").not(".hidden").length > 0
            : $("[data-mason='true']").not(".hidden").length > 0;
 
          if (childHeadersVisible) {
            if (isLibertyClick) {
              $("[data-liberty='true']").addClass("hidden");
+           } else if (isAgeClick) {
+             $("[data-age='true']").addClass("hidden");
            } else {
              $("[data-mason='true']").addClass("hidden");
            }
            $(".header")
              .not("[data-mason='true']")
              .not("[data-liberty='true']")
+             .not("[data-age='true']")
              .removeClass("hidden");
          } else {
            $(".header")
              .not(this)
-             .not(
-               isLibertyClick ? "[data-liberty='true']" : "[data-mason='true']"
-             )
              .addClass("hidden");
            if (isLibertyClick) $("[data-liberty='true']").removeClass("hidden");
+           else if (isAgeClick) $("[data-age='true']").removeClass("hidden");
            else $("[data-mason='true']").removeClass("hidden");
          }
 
@@ -435,12 +443,17 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          } else if ($("[data-liberty='true']").not(".hidden").length > 0) {
            $("[data-liberty='true']").removeClass("hidden");
            $("[data-group='group-liberty']").removeClass("hidden");
+         } else if ($("[data-age='true']").not(".hidden").length > 0) {
+           $("[data-age='true']").removeClass("hidden");
+           $("[data-group='group-age']").removeClass("hidden");
          } else {
            $(".header")
              .not("[data-mason='true']")
              .not("[data-liberty='true']")
+             .not("[data-age='true']")
              .removeClass("hidden");
          }
+
        } else {
          $(".header").not(this).addClass("hidden");
          $(this)

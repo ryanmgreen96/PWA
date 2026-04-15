@@ -282,6 +282,11 @@
       color: hsl(30, 85%, 82%);
   }
 
+  #mainAge {
+      font-size: 1.2em;
+      color: hsl(30, 85%, 82%);
+  }
+
 
 
 
@@ -345,7 +350,7 @@
       padding-top: 2em;
       padding-bottom: 15em;
       /* ← was 2em, now 30em */
-      white-space: pre-wrap;
+      white-space: normal;
   }
 
 
