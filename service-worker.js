@@ -63,20 +63,27 @@
 
 
 
-const CACHE_NAME = "pwa-cache-v2";
+const CACHE_NAME = "pwa-cache-v3";
 
 const FILES_TO_CACHE = [
   "/PWA/",
   "/PWA/index.html",
-  "/PWA/scripts.js",
-  "/PWA/jquery.min.js",
-  "/PWA/manifest.json",
-  "/PWA/Icon.png",
+  "/PWA/Age.html",
+  "/PWA/Book.html",
   "/PWA/greats.html",
+  "/PWA/IndexQ.html",
   "/PWA/Moral.html",
   "/PWA/Open.html",
   "/PWA/theLimit.html",
+  "/PWA/titles.html",
+  "/PWA/titlesSide.html",
+  "/PWA/scripts.js",
+  "/PWA/scriptMerge.js",
+  "/PWA/jquery.min.js",
+  "/PWA/manifest.json",
+  "/PWA/Icon.png",
   "/PWA/Centaur.woff2",
+  "/PWA/styles.css"
 ];
 
 self.addEventListener("install", (event) => {
