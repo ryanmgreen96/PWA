@@ -1,13 +1,13 @@
-// const CACHE_NAME = 'pwa-cache-v1';
+const CACHE_NAME = 'pwa-cache-v2';
 
-// const FILES_TO_CACHE = [
-//   '/PWA/',
-//   '/PWA/index.html',
-//   '/PWA/scripts.js',
-//   '/PWA/jquery.min.js',
-//   '/PWA/manifest.json',
-//   '/PWA/Icon.png',
-//   '/PWA/greats.html',
+const FILES_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/scripts.js',
+  '/jquery.min.js',
+  '/manifest.json',
+  '/Icon.png',
+  '/greats.html',
 //   '/PWA/Moral.html',
 //   '/PWA/Open.html',
 //   '/PWA/theLimit.html',
