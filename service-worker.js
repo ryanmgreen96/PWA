@@ -1,23 +1,82 @@
 const CACHE_NAME = 'pwa-cache-v2';
 
+// List of files to cache
 const FILES_TO_CACHE = [
   '/',
   '/index.html',
   '/scripts.js',
   '/jquery.min.js',
   '/manifest.json',
-  '/Icon.png',
+  '/styles.css',
   '/greats.html',
-//   '/PWA/Moral.html',
-//   '/PWA/Open.html',
-//   '/PWA/theLimit.html',
-//   '/PWA/Centaur.woff2'
-// ];
+  '/Moral.html',
+  '/Open.html',
+  '/theLimit.html',
+  '/Age.html',
+  '/Book.html',
+  '/IndexQ.html',
+  '/titles.html',
+  '/titlesSide.html'
+];
 
-// self.addEventListener('install', (event) => {
-//   console.log('[ServiceWorker] Install');
-//   event.waitUntil(
-//     caches.open(CACHE_NAME)
+self.addEventListener('install', (event) => {
+  console.log('[ServiceWorker] Install');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('[ServiceWorker] Caching files');
+        return cache.addAll(FILES_TO_CACHE);
+      })
+      .catch((err) => console.error('[ServiceWorker] Cache addAll failed:', err))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  console.log('[ServiceWorker] Activate');
+  event.waitUntil(
+    caches.keys().then((keyList) =>
+      Promise.all(
+        keyList.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[ServiceWorker] Deleting old cache:', key);
+            return caches.delete(key);
+          }
+        })
+      )
+    )
+  );
+  return self.clients.claim();
+});
+
+self.addEventListener('fetch', (evt) => {
+  if (evt.request.method !== 'GET') return;
+
+  evt.respondWith(
+    caches.match(evt.request)
+      .then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(evt.request)
+          .then((networkResponse) => {
+            // Optionally cache new requests
+            if (networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.put(evt.request, responseClone));
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Fallback for offline
+            if (evt.request.destination === 'document') {
+              return caches.match('/index.html');
+            }
+          });
+      })
+  );
+});
 //       .then((cache) => {
 //         console.log('[ServiceWorker] Caching files');
 //         return cache.addAll(FILES_TO_CACHE);
