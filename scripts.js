@@ -82,6 +82,7 @@ function deepMergeAppData(preferred, fallback) {
   // Merge simple top-level keys if missing in preferred
   const topKeys = [
     "notes",
+    "navigation",
     "background",
     "font",
     "fontSize",
@@ -216,11 +217,11 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        //   - `${divId}::note` => string
        //   - `${divId}::${word}` => string
        notes: {},
-       // UI prefs
-       background: null,
-       font: null,
-       fontSize: null,
-       contentWidth: null,
+    // navigation state for the nested book/chapter/group/item UI
+    navigation: {
+      elements: {},
+      activeItem: null,
+    },
        theme: "gradient", // "gradient" | "white"
        layout: "horizontal", // "horizontal" | "vertical"
      });
@@ -239,11 +240,89 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        }
        return appData;
      }
+     function ensureNavigationState() {
+       if (!appData.navigation || typeof appData.navigation !== "object") {
+         appData.navigation = { elements: {}, activeItem: null };
+       }
+       if (!appData.navigation.elements) {
+         appData.navigation.elements = {};
+       }
+       if (appData.navigation.activeItem == null) {
+         appData.navigation.activeItem = null;
+       }
+     }
+
      function saveAppData() {
+       ensureNavigationState();
        localStorage.setItem("appData", JSON.stringify(appData));
 
        // [7a] Firestore write (debounced)
        saveToFirestoreDebounced({ appData });
+     }
+
+     function getNavigationElementKey(el) {
+       const $el = $(el);
+       const tag = $el.prop("tagName").toLowerCase();
+       const group = $el.data("group") || "";
+       const text = ($el.text() || "").trim();
+
+       if ($el.hasClass("item")) {
+         return `item:${group}:${$el.data("file") || ""}:${$el.data("id") || ""}:${text}`;
+       }
+       if ($el.hasClass("sub-header")) {
+         return `subheader:${group}:${text}`;
+       }
+       if ($el.hasClass("header")) {
+         return `header:${group}:${text}`;
+       }
+       return `${tag}:${group}:${text}`;
+     }
+
+     function saveNavigationState() {
+       ensureNavigationState();
+
+       const elements = {};
+       $(".header, .sub-header, .item").each(function () {
+         elements[getNavigationElementKey(this)] = $(this).hasClass("hidden");
+       });
+
+       const activeItem = $(".item.active").first();
+       appData.navigation.elements = elements;
+       appData.navigation.activeItem = activeItem.length
+         ? {
+             key: getNavigationElementKey(activeItem[0]),
+             file: activeItem.data("file") || null,
+             id: activeItem.data("id") || null,
+             group: activeItem.data("group") || null,
+             text: activeItem.text().trim(),
+           }
+         : null;
+
+       saveAppData();
+     }
+
+     function restoreNavigationState() {
+       ensureNavigationState();
+       const saved = appData.navigation || {};
+       const elements = saved.elements || {};
+
+       $(".header, .sub-header, .item").each(function () {
+         const key = getNavigationElementKey(this);
+         if (Object.prototype.hasOwnProperty.call(elements, key)) {
+           if (elements[key]) $(this).addClass("hidden");
+           else $(this).removeClass("hidden");
+         }
+       });
+
+       const activeItem = saved.activeItem;
+       if (activeItem && activeItem.file && activeItem.id) {
+         const matchedItem = $(`.item[data-file="${activeItem.file}"][data-id="${activeItem.id}"]`).first();
+         if (matchedItem.length) {
+           $(".item").removeClass("active");
+           matchedItem.addClass("active");
+           matchedItem.trigger("click");
+         }
+       }
      }
 
      // Optional one-time migration of any legacy keys (background/font/etc + :: note keys)
@@ -366,6 +445,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        const meta = getLocalMeta();
        const nextMeta = { ...meta, lastClosedAt: now, lastSavedAt: now };
        setLocalMeta(nextMeta);
+       saveNavigationState();
        saveCloseSnapshotToFirestore(appData, now);
      }
      window.addEventListener("beforeunload", stampAndSyncOnClose);
@@ -422,6 +502,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
            ".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn"
          ).addClass("hidden");
          $(".content").empty();
+         saveNavigationState();
          return;
        }
 
@@ -463,6 +544,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        // Ensure all items are hidden
        $(".item").addClass("hidden");
+       saveNavigationState();
      });
 
      // ================================
@@ -603,6 +685,8 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          $("#subheaderNoteBox, .subheaderToggleBtn").remove();
          $(".content").empty();
        }
+
+       saveNavigationState();
      });
 
      // ================================
@@ -824,6 +908,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          // Optional: scrollTop & spacing
          $(".content").append('<button id="scrollTopBtn"></button>');
          $(".content").append('<div style="height: 30em;"></div>');
+         saveNavigationState();
        });
      });
 
@@ -920,6 +1005,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
      // Apply saved UI
      applyUIFromAppData();
+     restoreNavigationState();
 
      // Toggle rows (unchanged)
      $(".control-toggle").click(function () {

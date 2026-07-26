@@ -391,10 +391,8 @@
   }
 
   .item.active {
-      color: hsl(34, 98%, 87%);
-      /* Slightly brighter color */
-      text-shadow: 0 0 2px hsla(34, 96%, 90%, 0.071);
-      /* Subtle glow effect */
+      color: hsl(38, 70%, 74%);
+      text-shadow: 0 0 1px rgba(255, 210, 120, 0.24);
   }
 
 
