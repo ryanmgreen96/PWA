@@ -461,18 +461,22 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      $(".header").click(function () {
        const group = $(this).data("group");
 
-       // Special handling for Mason, Liberty, and Age (keep prior behavior)
+       // Special handling for the top-level books (Mason, Liberty, Age, Won)
        if (
          group === "group-mason" ||
          group === "group-liberty" ||
-         group === "group-age"
+         group === "group-age" ||
+         group === "group-won"
        ) {
          const isLibertyClick = group === "group-liberty";
          const isAgeClick = group === "group-age";
+         const isWonClick = group === "group-won";
          const childHeadersVisible = isLibertyClick
            ? $("[data-liberty='true']").not(".hidden").length > 0
            : isAgeClick
            ? $("[data-age='true']").not(".hidden").length > 0
+           : isWonClick
+           ? $("[data-won='true']").not(".hidden").length > 0
            : $("[data-mason='true']").not(".hidden").length > 0;
 
          if (childHeadersVisible) {
@@ -480,6 +484,8 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
              $("[data-liberty='true']").addClass("hidden");
            } else if (isAgeClick) {
              $("[data-age='true']").addClass("hidden");
+           } else if (isWonClick) {
+             $("[data-won='true']").addClass("hidden");
            } else {
              $("[data-mason='true']").addClass("hidden");
            }
@@ -487,6 +493,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
              .not("[data-mason='true']")
              .not("[data-liberty='true']")
              .not("[data-age='true']")
+             .not("[data-won='true']")
              .removeClass("hidden");
          } else {
            $(".header")
@@ -494,6 +501,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
              .addClass("hidden");
            if (isLibertyClick) $("[data-liberty='true']").removeClass("hidden");
            else if (isAgeClick) $("[data-age='true']").removeClass("hidden");
+           else if (isWonClick) $("[data-won='true']").removeClass("hidden");
            else $("[data-mason='true']").removeClass("hidden");
          }
 
@@ -527,14 +535,17 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          } else if ($("[data-age='true']").not(".hidden").length > 0) {
            $("[data-age='true']").removeClass("hidden");
            $("[data-group='group-age']").removeClass("hidden");
+         } else if ($("[data-won='true']").not(".hidden").length > 0) {
+           $("[data-won='true']").removeClass("hidden");
+           $("[data-group='group-won']").removeClass("hidden");
          } else {
            $(".header")
              .not("[data-mason='true']")
              .not("[data-liberty='true']")
              .not("[data-age='true']")
+             .not("[data-won='true']")
              .removeClass("hidden");
          }
-
        } else {
          $(".header").not(this).addClass("hidden");
          $(this)
