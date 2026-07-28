@@ -282,7 +282,8 @@
       color: hsl(30, 85%, 82%);
   }
 
-  #mainAge {
+  #mainAge,
+  #mainWon {
       font-size: 1.2em;
       color: hsl(30, 85%, 82%);
   }
