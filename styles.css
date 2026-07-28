@@ -391,8 +391,8 @@
   }
 
   .item.active {
-      color: hsl(38, 70%, 74%);
-      text-shadow: 0 0 1px rgba(255, 210, 120, 0.24);
+      color: hsl(40, 100%, 84%);
+      text-shadow: 0 0 1px rgba(255, 220, 145, 0.18);
   }
 
 
