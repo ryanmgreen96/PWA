@@ -897,7 +897,7 @@ $(document).ready(function () {
       window.location.hostname !== "127.0.0.1" &&
       window.location.hostname !== "localhost"
     ) {
-      navigator.serviceWorker.register("/service-worker.js");
+      navigator.serviceWorker.register("service-worker.js");
     } else {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (let registration of registrations) {
@@ -906,6 +906,32 @@ $(document).ready(function () {
       });
     }
   }
+
+  // ================================
+  // Connectivity banner (cloud sync notice)
+  // ================================
+  function initConnectivityBanner() {
+    if (!$("#connectivityStatus").length) {
+      $("body").append(
+        '<div id="connectivityStatus" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:9999; padding:8px 12px; border-radius:999px; font-size:0.85em; line-height:1; background:rgba(15,15,15,0.92); color:#fff8dc; border:1px solid rgba(255,248,220,0.35);">Offline: local content available. Cloud sync pauses until you reconnect.</div>'
+      );
+    }
+
+    const banner = $("#connectivityStatus");
+    const setState = () => {
+      if (navigator.onLine) {
+        banner.stop(true, true).fadeOut(180);
+      } else {
+        banner.stop(true, true).fadeIn(180);
+      }
+    };
+
+    window.addEventListener("online", setState);
+    window.addEventListener("offline", setState);
+    setState();
+  }
+
+  initConnectivityBanner();
 
   // Misc handlers (kept)
   $("#toggle-classification-bar").click(function () {

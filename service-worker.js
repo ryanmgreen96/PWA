@@ -1,187 +1,79 @@
-const CACHE_NAME = 'pwa-cache-v2';
+const CACHE_NAME = "pwa-cache-v4";
 
-// List of files to cache
-const FILES_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/scripts.js',
-  '/jquery.min.js',
-  '/manifest.json',
-  '/styles.css',
-  '/greats.html',
-  '/Moral.html',
-  '/Open.html',
-  '/theLimit.html',
-  '/Age.html',
-  '/Book.html',
-  '/IndexQ.html',
-  '/titles.html',
-  '/titlesSide.html'
+// Core shell + content files loaded by .item clicks.
+const APP_FILES = [
+  "/",
+  "/index.html",
+  "/manifest.json",
+  "/styles.css",
+  "/jquery.min.js",
+  "/scripts.js",
+  "/scriptMerge.js",
+  "/Age.html",
+  "/Book.html",
+  "/greats.html",
+  "/Moral.html",
+  "/Open.html",
+  "/theLimit.html",
+  "/titles.html",
+  "/titlesSide.html",
+  "/won.html",
+  "/WonTitles.html"
 ];
 
-self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[ServiceWorker] Caching files');
-        return cache.addAll(FILES_TO_CACHE);
-      })
-      .catch((err) => console.error('[ServiceWorker] Cache addAll failed:', err))
-  );
-  self.skipWaiting();
-});
+function scopePathname() {
+  return new URL(self.registration.scope).pathname.replace(/\/$/, "");
+}
 
-self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
-  event.waitUntil(
-    caches.keys().then((keyList) =>
-      Promise.all(
-        keyList.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Deleting old cache:', key);
-            return caches.delete(key);
-          }
-        })
-      )
-    )
-  );
-  return self.clients.claim();
-});
+function toScopedUrl(path) {
+  const scope = scopePathname();
+  if (path === "/") return `${scope}/`;
+  return `${scope}${path}`;
+}
 
-self.addEventListener('fetch', (evt) => {
-  if (evt.request.method !== 'GET') return;
-
-  evt.respondWith(
-    caches.match(evt.request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(evt.request)
-          .then((networkResponse) => {
-            // Optionally cache new requests
-            if (networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              caches.open(CACHE_NAME)
-                .then((cache) => cache.put(evt.request, responseClone));
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Fallback for offline
-            if (evt.request.destination === 'document') {
-              return caches.match('/index.html');
-            }
-          });
-      })
-  );
-});
-//       .then((cache) => {
-//         console.log('[ServiceWorker] Caching files');
-//         return cache.addAll(FILES_TO_CACHE);
-//       })
-//       .catch((err) => console.error('[ServiceWorker] Cache addAll failed:', err))
-//   );
-// });
-
-// self.addEventListener('activate', (event) => {
-//   console.log('[ServiceWorker] Activate');
-//   event.waitUntil(
-//     caches.keys().then((keyList) =>
-//       Promise.all(
-//         keyList.map((key) => {
-//           if (key !== CACHE_NAME) {
-//             return caches.delete(key);
-//           }
-//         })
-//       )
-//     )
-//   );
-//   return self.clients.claim();
-// });
-
-// self.addEventListener('fetch', (evt) => {
-//   if (evt.request.method !== 'GET') return;
-
-//   evt.respondWith(
-//     fetch(evt.request)
-//       .then((networkResponse) => {
-//         // Optionally cache the new response
-//         return caches.open(CACHE_NAME).then(cache => {
-//           cache.put(evt.request, networkResponse.clone());
-//           return networkResponse;
-//         });
-//       })
-//       .catch(() => {
-//         // If network fails, use cache
-//         return caches.match(evt.request);
-//       })
-//   );
-// });
-
-
-
-const CACHE_NAME = "pwa-cache-v3";
-
-const FILES_TO_CACHE = [
-  "/PWA/",
-  "/PWA/index.html",
-  "/PWA/Age.html",
-  "/PWA/Book.html",
-  "/PWA/greats.html",
-  "/PWA/IndexQ.html",
-  "/PWA/Moral.html",
-  "/PWA/Open.html",
-  "/PWA/theLimit.html",
-  "/PWA/titles.html",
-  "/PWA/titlesSide.html",
-  "/PWA/scripts.js",
-  "/PWA/scriptMerge.js",
-  "/PWA/jquery.min.js",
-  "/PWA/manifest.json",
-  "/PWA/Icon.png",
-  "/PWA/Centaur.woff2",
-  "/PWA/styles.css"
-];
+function normalizeRequestKey(requestUrl) {
+  const url = new URL(requestUrl);
+  url.hash = "";
+  return url.toString();
+}
 
 self.addEventListener("install", (event) => {
-  console.log("[ServiceWorker] Install");
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("[ServiceWorker] Caching files");
-        return cache.addAll(FILES_TO_CACHE);
-      })
-      .catch((err) =>
-        console.error("[ServiceWorker] Cache addAll failed:", err)
-      )
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const urls = APP_FILES.map(toScopedUrl);
+
+      // Cache files individually so one bad/missing file does not kill the whole install.
+      await Promise.allSettled(
+        urls.map((url) => cache.add(new Request(url, { cache: "reload" })))
+      );
+
+      await self.skipWaiting();
+    })()
   );
 });
 
 self.addEventListener("activate", (event) => {
-  console.log("[ServiceWorker] Activate");
   event.waitUntil(
-    caches.keys().then((keyList) =>
-      Promise.all(
-        keyList.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      )
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      );
+      await self.clients.claim();
+    })()
   );
-  return self.clients.claim();
 });
 
-self.addEventListener("fetch", (evt) => {
-  if (evt.request.method !== "GET") return;
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
 
-  const url = new URL(evt.request.url);
+  const url = new URL(request.url);
 
-  // 🚫 Don’t cache Firebase requests
+  // Leave Firestore/API traffic alone.
   if (
     url.origin.includes("firebaseio.com") ||
     url.origin.includes("googleapis.com")
@@ -189,18 +81,27 @@ self.addEventListener("fetch", (evt) => {
     return;
   }
 
-  evt.respondWith(
-    caches.match(evt.request).then((cachedResponse) => {
-      return (
-        cachedResponse ||
-        fetch(evt.request).then((networkResponse) => {
-          // Update cache in background
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(evt.request, networkResponse.clone());
-          });
-          return networkResponse;
-        })
-      );
-    })
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cacheKey = normalizeRequestKey(request.url);
+
+      const cached = await cache.match(cacheKey);
+      if (cached) return cached;
+
+      try {
+        const network = await fetch(request);
+        if (network && network.ok && request.url.startsWith(self.location.origin)) {
+          await cache.put(cacheKey, network.clone());
+        }
+        return network;
+      } catch (err) {
+        if (request.destination === "document") {
+          const fallback = await cache.match(toScopedUrl("/index.html"));
+          if (fallback) return fallback;
+        }
+        throw err;
+      }
+    })()
   );
 });

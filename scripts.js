@@ -278,6 +278,33 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        return `${tag}:${group}:${text}`;
      }
 
+     function getAutoloadItemForCategory($categoryEl) {
+       if (!$categoryEl || !$categoryEl.length) return $();
+
+       const nextItems = $categoryEl
+         .nextUntil(".header, .sub-header", ".item[data-autoload='true']")
+         .filter(function () {
+           return $(this).attr("data-autoload") === "true";
+         });
+
+       return nextItems.first();
+     }
+
+     function loadDefaultItemForCategory($categoryEl) {
+       const $defaultItem = getAutoloadItemForCategory($categoryEl);
+       if (!$defaultItem.length) return false;
+
+       $(".item").addClass("hidden");
+       $defaultItem.addClass("hidden");
+       $defaultItem.trigger("click");
+       return true;
+     }
+
+     function clearLoadedContent() {
+       $(".content").empty();
+       $(".item").removeClass("active");
+     }
+
      function saveNavigationState() {
        ensureNavigationState();
 
@@ -286,7 +313,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          elements[getNavigationElementKey(this)] = $(this).hasClass("hidden");
        });
 
-       const activeItem = $(".item.active").first();
+       const activeItem = $(".item.active").not("[data-autoload='true']").first();
        appData.navigation.elements = elements;
        appData.navigation.activeItem = activeItem.length
          ? {
@@ -315,9 +342,9 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        });
 
        const activeItem = saved.activeItem;
-       if (activeItem && activeItem.file && activeItem.id) {
+       if (activeItem && activeItem.file && activeItem.id && activeItem.text) {
          const matchedItem = $(`.item[data-file="${activeItem.file}"][data-id="${activeItem.id}"]`).first();
-         if (matchedItem.length) {
+         if (matchedItem.length && matchedItem.attr("data-autoload") !== "true") {
            $(".item").removeClass("active");
            matchedItem.addClass("active");
            matchedItem.trigger("click");
@@ -509,7 +536,10 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          $(
            ".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn"
          ).addClass("hidden");
-         $(".content").empty();
+         clearLoadedContent();
+         if (!childHeadersVisible) {
+           loadDefaultItemForCategory($(this));
+         }
          saveNavigationState();
          return;
        }
@@ -522,7 +552,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        $(".sub-header, .item, #subheaderNoteBox, .subheaderToggleBtn").addClass(
          "hidden"
        );
-       $(".content").empty(); // clear content
+       clearLoadedContent(); // clear content
 
        if (isExpanded) {
          // Show regular headers and handle special sections
@@ -555,6 +585,9 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        // Ensure all items are hidden
        $(".item").addClass("hidden");
+       if (!isExpanded) {
+         loadDefaultItemForCategory($(this));
+       }
        saveNavigationState();
      });
 
@@ -577,12 +610,18 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          $(this).removeClass("hidden");
 
          // Show items under this subheader
-         const items = $(this)
-           .nextUntil(".sub-header", ".item")
-           .removeClass("hidden");
+         const items = $(this).nextUntil(".sub-header", ".item").not("[data-autoload='true']");
+         const defaultItem = $(this).nextUntil(".sub-header", ".item[data-autoload='true']").first();
+
+         if (defaultItem.length) {
+           $(this).nextUntil(".sub-header", ".item[data-autoload='true']").addClass("hidden");
+           items.removeClass("hidden");
+         } else {
+           items.removeClass("hidden");
+         }
 
          // Hide all other note boxes
-         $(".content").empty();
+         clearLoadedContent();
 
          // -----------------------------
          // Add subheader note box (all screen sizes)
@@ -689,12 +728,15 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
          // Ensure other items remain hidden
          $(".item").not(items).addClass("hidden");
+         if (defaultItem.length) {
+           defaultItem.trigger("click");
+         }
        } else {
          // Collapse: show only sibling subheaders of this group
          $(`[data-group='${group}'].sub-header`).removeClass("hidden");
          $(".item").addClass("hidden");
          $("#subheaderNoteBox, .subheaderToggleBtn").remove();
-         $(".content").empty();
+         clearLoadedContent();
        }
 
        saveNavigationState();
@@ -713,8 +755,9 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        // Load item content
        $(".content").load(file + " #" + divId, function () {
-         // Remove previous note box, select button, and floating button
+         // Remove previous item-level note UI
          $("#itemNoteBox, #selectAllBtn, #itemFloatBtn").remove();
+         return;
 
          // Create select all button
          const selectAllBtn = $(`
@@ -848,72 +891,6 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
              $("#noteInput").val(appData.notes[key] || "");
              $("#noteOverlay").removeClass("hidden").data("note-key", key);
              $("#overlayBackdrop").addClass("visible");
-           });
-
-         // Floating button for modal access
-         // Floating button for modal access
-         $("#itemFloatBtn").remove();
-         const floatBtn = $('<button id="itemFloatBtn">✎</button>')
-           .css({
-             position: "fixed",
-             bottom: "1em",
-             right: "1em",
-             width: "2em",
-             height: "2em",
-             "border-radius": "50%",
-             border: "1px solid rgba(255,255,224,0.5)",
-             background: "transparent",
-             color: "#ffffe0",
-             cursor: "pointer",
-             "z-index": 9999,
-           })
-           .appendTo("body");
-
-         // Function to update button size based on window width
-         function updateFloatBtnSize() {
-           if ($(window).width() < 700) {
-             floatBtn.css({
-               width: "1em",
-               height: "1em",
-               "font-size": "0.7em",
-               "line-height": "1em",
-             });
-           } else {
-             floatBtn.css({
-               width: "2em",
-               height: "2em",
-               "font-size": "1em",
-               "line-height": "2em",
-             });
-           }
-         }
-
-         // Initial call
-         updateFloatBtnSize();
-
-         // Update on window resize
-         $(window).on("resize", updateFloatBtnSize);
-
-         floatBtn.on("click", function () {
-           const currentText = appData.notes[noteKey] || "";
-           $("#noteInput").val(currentText);
-           $("#noteOverlay").removeClass("hidden").data("note-key", noteKey);
-           $("#overlayBackdrop").addClass("visible");
-         });
-
-         // Sync modal back to note box
-         $("#noteInput")
-           .off("input")
-           .on("input", function () {
-             const key = $("#noteOverlay").data("note-key");
-             const val = $(this).val();
-             appData.notes[key] = val;
-             saveAppData();
-
-             // Update noteBox if currently loaded
-             if ($("#itemNoteBox").length && key === noteKey) {
-               $("#itemNoteBox").val(val).trigger("input");
-             }
            });
 
          // Optional: scrollTop & spacing
@@ -1109,7 +1086,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          window.location.hostname !== "127.0.0.1" &&
          window.location.hostname !== "localhost"
        ) {
-         navigator.serviceWorker.register("/service-worker.js");
+        navigator.serviceWorker.register("service-worker.js");
        } else {
          navigator.serviceWorker.getRegistrations().then((registrations) => {
            for (let registration of registrations) {
@@ -1118,6 +1095,32 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          });
        }
      }
+
+     // ================================
+     // Connectivity banner (cloud sync notice)
+     // ================================
+     function initConnectivityBanner() {
+       if (!$("#connectivityStatus").length) {
+         $("body").append(
+           '<div id="connectivityStatus" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:9999; padding:8px 12px; border-radius:999px; font-size:0.85em; line-height:1; background:rgba(15,15,15,0.92); color:#fff8dc; border:1px solid rgba(255,248,220,0.35);">Offline: local content available. Cloud sync pauses until you reconnect.</div>'
+         );
+       }
+
+       const banner = $("#connectivityStatus");
+       const setState = () => {
+         if (navigator.onLine) {
+           banner.stop(true, true).fadeOut(180);
+         } else {
+           banner.stop(true, true).fadeIn(180);
+         }
+       };
+
+       window.addEventListener("online", setState);
+       window.addEventListener("offline", setState);
+       setState();
+     }
+
+     initConnectivityBanner();
 
      // Misc handlers (kept)
      $("#toggle-classification-bar").click(function () {
