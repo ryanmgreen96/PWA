@@ -1086,7 +1086,10 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          window.location.hostname !== "127.0.0.1" &&
          window.location.hostname !== "localhost"
        ) {
-        navigator.serviceWorker.register("service-worker.js");
+          navigator.serviceWorker.register("service-worker.js").then((registration) => {
+            // Ask the browser to check for a new SW now instead of waiting.
+            registration.update();
+          });
        } else {
          navigator.serviceWorker.getRegistrations().then((registrations) => {
            for (let registration of registrations) {

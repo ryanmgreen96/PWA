@@ -1,4 +1,4 @@
-const CACHE_NAME = "pwa-cache-v6";
+const CACHE_NAME = "pwa-cache-v7";
 
 // Core shell + content files loaded by .item clicks.
 const APP_FILES = [
@@ -93,12 +93,11 @@ self.addEventListener("fetch", (event) => {
 
       const isNavigationRequest =
         request.mode === "navigate" || request.destination === "document";
+      const isSameOrigin = url.origin === self.location.origin;
 
       if (isNavigationRequest) {
-        const cachedIndex = await cache.match(toScopedUrl("/index.html"));
-        if (cachedIndex) return cachedIndex;
-
         try {
+          // Network-first so an online reload picks up fresh content.
           const network = await fetch(request);
           if (
             network &&
@@ -109,28 +108,37 @@ self.addEventListener("fetch", (event) => {
           }
           return network;
         } catch (err) {
+          const cachedNav = await cache.match(cacheKey, { ignoreSearch: true });
+          if (cachedNav) return cachedNav;
+
+          const cachedIndex = await cache.match(toScopedUrl("/index.html"));
+          if (cachedIndex) return cachedIndex;
+
           const cachedRoot = await cache.match(toScopedUrl("/"));
           if (cachedRoot) return cachedRoot;
           throw err;
         }
       }
 
+      // For same-origin app assets, prefer network so reload updates immediately.
+      if (isSameOrigin) {
+        try {
+          const network = await fetch(request);
+          if (network && network.ok) {
+            await cache.put(cacheKey, network.clone());
+          }
+          return network;
+        } catch (err) {
+          const cached = await cache.match(cacheKey, { ignoreSearch: true });
+          if (cached) return cached;
+          throw err;
+        }
+      }
+
+      // For cross-origin GET requests, use cache fallback but do not force-cache failures.
       const cached = await cache.match(cacheKey, { ignoreSearch: true });
       if (cached) return cached;
-
-      try {
-        const network = await fetch(request);
-        if (network && network.ok && request.url.startsWith(self.location.origin)) {
-          await cache.put(cacheKey, network.clone());
-        }
-        return network;
-      } catch (err) {
-        if (request.destination === "document") {
-          const fallback = await cache.match(toScopedUrl("/index.html"));
-          if (fallback) return fallback;
-        }
-        throw err;
-      }
+      return fetch(request);
     })()
   );
 });
