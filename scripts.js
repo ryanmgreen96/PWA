@@ -757,7 +757,6 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        $(".content").load(file + " #" + divId, function () {
          // Remove previous item-level note UI
          $("#itemNoteBox, #selectAllBtn, #itemFloatBtn").remove();
-         return;
 
          // Create select all button
          const selectAllBtn = $(`
