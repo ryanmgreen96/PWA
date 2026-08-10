@@ -752,9 +752,18 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        const file = $(this).data("file");
        const divId = $(this).data("id");
+       const selector = "#" + divId;
 
        // Load item content
-       $(".content").load(file + " #" + divId, function () {
+       $(".content").load(file + " " + selector, function (responseText, textStatus) {
+         const loadedSection = $(".content").find(selector);
+         if (textStatus === "error" || !loadedSection.length) {
+           $(".content").html(
+             '<div style="padding:0.75em 0;color:#ffffe0;">Item text could not load. Reconnect once, reload the app, then go offline again.</div>'
+           );
+           return;
+         }
+
          // Remove previous item-level note UI
          $("#itemNoteBox, #selectAllBtn, #itemFloatBtn").remove();
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "pwa-cache-v8";
+const CACHE_NAME = "pwa-cache-v9";
 
 // Core shell + content files loaded by .item clicks.
 const APP_FILES = [
@@ -9,6 +9,7 @@ const APP_FILES = [
   "/jquery.min.js",
   "/scripts.js",
   "/scriptMerge.js",
+  "/service-worker.js",
   "/Age.html",
   "/Book.html",
   "/greats.html",
@@ -18,6 +19,7 @@ const APP_FILES = [
   "/titles.html",
   "/titlesSide.html",
   "/won.html",
+  "/won2.html",
   "/WonTitles.html",
   "/writing.html"
 ];
@@ -49,10 +51,23 @@ self.addEventListener("install", (event) => {
       const cache = await caches.open(CACHE_NAME);
       const urls = APP_FILES.map(toScopedUrl);
 
-      // Cache files individually so one bad/missing file does not kill the whole install.
-      await Promise.allSettled(
-        urls.map((url) => cache.add(new Request(url, { cache: "reload" })))
+      // Cache files individually, but do not activate if any required file failed.
+      // A partial cache can break offline item text loads.
+      const results = await Promise.allSettled(
+        urls.map((url) => cache.add(new Request(url)))
       );
+
+      const failedUrls = results
+        .map((result, index) => ({ result, url: urls[index] }))
+        .filter((entry) => entry.result.status === "rejected")
+        .map((entry) => entry.url);
+
+      if (failedUrls.length > 0) {
+        await caches.delete(CACHE_NAME);
+        throw new Error(
+          `Service worker install aborted. Failed to cache: ${failedUrls.join(", ")}`
+        );
+      }
 
       await self.skipWaiting();
     })()
