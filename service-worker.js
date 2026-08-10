@@ -1,4 +1,4 @@
-const CACHE_NAME = "pwa-cache-v7";
+const CACHE_NAME = "pwa-cache-v8";
 
 // Core shell + content files loaded by .item clicks.
 const APP_FILES = [
@@ -18,7 +18,8 @@ const APP_FILES = [
   "/titles.html",
   "/titlesSide.html",
   "/won.html",
-  "/WonTitles.html"
+  "/WonTitles.html",
+  "/writing.html"
 ];
 
 function scopePathname() {
