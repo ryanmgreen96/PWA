@@ -181,17 +181,17 @@
   }
 
   #colors-row button[data-gradient*="hsl(110"] {
-      background: linear-gradient(rgb(14, 14, 14), 30%, hsl(110, 32%, 36%));
+    background: linear-gradient(rgb(14, 14, 14), hsl(110, 32%, 36%) 30%);
       color: transparent;
   }
 
   #colors-row button[data-gradient*="hsl(200"] {
-      background: linear-gradient(rgb(14, 14, 14), 30%, hsl(200, 32%, 36%));
+    background: linear-gradient(rgb(14, 14, 14), hsl(200, 32%, 36%) 30%);
       color: transparent;
   }
 
   #colors-row button[data-gradient*="hsl(270"] {
-      background: linear-gradient(rgb(14, 14, 14), 30%, hsl(270, 32%, 36%));
+    background: linear-gradient(rgb(14, 14, 14), hsl(270, 32%, 36%) 30%);
       color: transparent;
   }
 

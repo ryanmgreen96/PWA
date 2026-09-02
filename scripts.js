@@ -209,6 +209,9 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
 
    $(document).ready(function () {
+    $("link[rel='stylesheet']").slice(1).remove();
+    $(".container").slice(1).remove();
+
      // ================================
      // APP DATA (single object) + helpers
      // ================================
@@ -409,7 +412,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          if (appData.background) updateBackground(appData.background);
        }
 
-       const layoutToggle = $("#layout-toggle");
+      const layoutToggle = $("[id='layout-toggle']");
        const container = $(".container");
        if (appData.layout === "vertical") {
          container.addClass("vertical-layout");
@@ -1006,7 +1009,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // Toggle rows (unchanged)
      $(".control-toggle").click(function () {
        const type = $(this).data("type");
-       const targetRow = $(`#${type}-row`);
+      const targetRow = $(`[id='${type}-row']`);
 
        if (targetRow.css("display") === "flex") {
          targetRow.hide();
@@ -1017,8 +1020,8 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      });
 
      // Color buttons -> gradient theme
-     $("#colors-row button")
-       .not("#whiteThemeBtn")
+     $("[id='colors-row'] button")
+       .not("[id='whiteThemeBtn']")
        .click(function () {
          const gradient = $(this).data("gradient");
          $("html, body").removeClass("white-theme").addClass("gradient-theme");
@@ -1028,7 +1031,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        });
 
      // White theme
-     $("#whiteThemeBtn").click(function () {
+    $("[id='whiteThemeBtn']").click(function () {
        $("html, body").removeClass("gradient-theme").addClass("white-theme");
        appData.theme = "white";
        saveAppData();
@@ -1061,7 +1064,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // ================================
      // Layout toggle using appData.layout
      // ================================
-     const layoutToggle = $("#layout-toggle");
+    const layoutToggle = $("[id='layout-toggle']");
      const container = $(".container");
 
      if (appData.layout === "vertical") {

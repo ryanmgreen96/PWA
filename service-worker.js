@@ -1,4 +1,4 @@
-const CACHE_NAME = "pwa-cache-v9";
+const CACHE_NAME = "pwa-cache-v10";
 
 // Core shell + content files loaded by .item clicks.
 const APP_FILES = [
