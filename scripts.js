@@ -230,6 +230,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      });
 
      let appData;
+    let scrollToLoadedItem = false;
 
      /* ---------------------------------------------------------
      [7] loadAppData/saveAppData EXTENDED for Firestore writes
@@ -317,13 +318,20 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        });
 
        const activeItem = $(".item.active").not("[data-autoload='true']").first();
+       const activeGroup = activeItem.data("group") || null;
+       const activeSubheader = activeItem.length
+         ? activeItem.prevAll(`.sub-header[data-group='${activeGroup}']`).first()
+         : $();
        appData.navigation.elements = elements;
        appData.navigation.activeItem = activeItem.length
          ? {
              key: getNavigationElementKey(activeItem[0]),
              file: activeItem.data("file") || null,
              id: activeItem.data("id") || null,
-             group: activeItem.data("group") || null,
+             group: activeGroup,
+             subheader: activeSubheader.length
+               ? activeSubheader.text().trim()
+               : null,
              text: activeItem.text().trim(),
            }
          : null;
@@ -346,8 +354,47 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        const activeItem = saved.activeItem;
        if (activeItem && activeItem.file && activeItem.id && activeItem.text) {
-         const matchedItem = $(`.item[data-file="${activeItem.file}"][data-id="${activeItem.id}"]`).first();
+         const matchedItem = $(`.item[data-file="${activeItem.file}"][data-id="${activeItem.id}"]`)
+           .filter(function () {
+             if (activeItem.group && $(this).data("group") !== activeItem.group) {
+               return false;
+             }
+
+             const itemSubheader = $(this)
+               .prevAll(`.sub-header[data-group='${activeItem.group}']`)
+               .first();
+             if (activeItem.subheader) {
+               return itemSubheader.text().trim() === activeItem.subheader;
+             }
+
+             if (!itemSubheader.length) return true;
+             const subheaderKey = getNavigationElementKey(itemSubheader[0]);
+             return !Object.prototype.hasOwnProperty.call(elements, subheaderKey) ||
+               elements[subheaderKey] === false;
+           })
+           .first();
          if (matchedItem.length && matchedItem.attr("data-autoload") !== "true") {
+           const activeGroup = activeItem.group || matchedItem.data("group");
+           const activeSubheader = matchedItem.prevAll(
+             `.sub-header[data-group='${activeGroup}']`
+           ).first();
+           if (activeSubheader.length) {
+             const bookHeader = activeSubheader.hasClass("book-section")
+               ? activeSubheader
+                   .prevAll(`.sub-header[data-group='${activeGroup}']:not(.book-section)`)
+                   .filter(function () {
+                     return $(this).text().trim() === "Book";
+                   })
+                   .first()
+               : $();
+
+             $(".sub-header, .item").addClass("hidden");
+             bookHeader.removeClass("hidden");
+             activeSubheader.removeClass("hidden");
+             activeSubheader
+               .nextUntil(".sub-header, .header", ".item")
+               .removeClass("hidden");
+           }
            $(".item").removeClass("active");
            matchedItem.addClass("active");
            matchedItem.trigger("click");
@@ -582,7 +629,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
        } else {
          $(".header").not(this).addClass("hidden");
          $(this)
-           .siblings(`.sub-header[data-group='${group}']`)
+           .siblings(`.sub-header[data-group='${group}']:not(.book-section)`)
            .removeClass("hidden");
        }
 
@@ -599,8 +646,12 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
      // ================================
      $(".sub-header").click(function () {
        const group = $(this).data("group");
+       const isBookGroup = $(this).text().trim() === "Book";
+       const bookSections = $(this).nextUntil(".header", ".book-section");
        const isExpanded =
-         $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
+         isBookGroup
+           ? bookSections.not(".hidden").length > 0
+           : $(this).nextUntil(".sub-header", ".item").not(".hidden").length > 0;
 
        // Always hide other subheader note boxes and toggle buttons
        $("#subheaderNoteBox, .subheaderToggleBtn").remove();
@@ -612,9 +663,13 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          $(".item, .sub-header").addClass("hidden");
          $(this).removeClass("hidden");
 
-         // Show items under this subheader
-         const items = $(this).nextUntil(".sub-header", ".item").not("[data-autoload='true']");
-         const defaultItem = $(this).nextUntil(".sub-header", ".item[data-autoload='true']").first();
+         // Book reveals section titles; ordinary subheaders reveal their items.
+         const items = isBookGroup
+           ? bookSections
+           : $(this).nextUntil(".sub-header", ".item").not("[data-autoload='true']");
+         const defaultItem = isBookGroup
+           ? $()
+           : $(this).nextUntil(".sub-header", ".item[data-autoload='true']").first();
 
          if (defaultItem.length) {
            $(this).nextUntil(".sub-header", ".item[data-autoload='true']").addClass("hidden");
@@ -736,7 +791,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
          }
        } else {
          // Collapse: show only sibling subheaders of this group
-         $(`[data-group='${group}'].sub-header`).removeClass("hidden");
+         $(`[data-group='${group}'].sub-header:not(.book-section)`).removeClass("hidden");
          $(".item").addClass("hidden");
          $("#subheaderNoteBox, .subheaderToggleBtn").remove();
          clearLoadedContent();
@@ -755,6 +810,7 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
        const file = $(this).data("file");
        const divId = $(this).data("id");
+      const currentItem = this;
        const selector = "#" + divId;
 
        // Load item content
@@ -906,7 +962,18 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
          // Optional: scrollTop & spacing
          $(".content").append('<button id="scrollTopBtn"></button>');
+         const nextItem = $(currentItem)
+           .nextUntil(".sub-header, .header", ".item")
+           .first();
+         $(".content").append(
+           $('<button id="nextItemBtn" type="button" aria-label="Open next item" title="Open next item">&gt;</button>')
+             .prop("disabled", !nextItem.length)
+         );
          $(".content").append('<div style="height: 30em;"></div>');
+         if (scrollToLoadedItem) {
+           scrollToLoadedItem = false;
+           loadedSection[0].scrollIntoView({ behavior: "smooth", block: "start" });
+         }
          saveNavigationState();
        });
      });
@@ -1122,5 +1189,17 @@ function startFirestoreListener(getAppData, setAppDataAndApply) {
 
      $(document).on("click", "#scrollTopBtn", function () {
        window.scrollTo({ top: 0, behavior: "smooth" });
+     });
+
+     $(document).on("click", "#nextItemBtn", function () {
+       if ($(this).prop("disabled")) return;
+
+       const nextItem = $(".item.active")
+         .nextUntil(".sub-header, .header", ".item")
+         .first();
+       if (nextItem.length) {
+         scrollToLoadedItem = true;
+         nextItem.trigger("click");
+       }
      });
    });

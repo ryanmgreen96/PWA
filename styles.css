@@ -698,8 +698,32 @@
       transition: background 0.3s;
   }
 
+  #nextItemBtn {
+      display: block;
+      margin: 3em auto;
+      font-family: 'Centaur', serif;
+      background-color: #444444;
+      color: yellow;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      height: 20px;
+      width: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: background 0.3s;
+  }
+
   #scrollTopBtn:hover {
       background-color: #770000;
+  }
+
+  #nextItemBtn:hover:not(:disabled) {
+      background-color: #770000;
+  }
+
+  #nextItemBtn:disabled {
+      cursor: default;
+      opacity: 0.35;
   }
 
 
